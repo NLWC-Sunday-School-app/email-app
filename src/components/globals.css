@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+.active {
+  background-color: #ffffff18;
+  border-left-width: 5px;
+}
+
+.nav-item:hover{
+  background-color: #ffffff18;
+}
+
+.nav-item {
+  display: flex;
+  justify-content: flex-start;
+  border-radius: 5px;
+  height: 35px;
+  align-items: center;
+  text-decoration: none;
+  color: white;
+  width: 80%
+}
+
+.nav-item-data{
+  gap: 5px; 
+  display: flex; 
+  align-items: center; 
+  padding-left: 20px
+}
+
+
+

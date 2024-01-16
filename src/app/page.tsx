@@ -7,7 +7,7 @@ export default function Home() {
   const { loggedinUser }: any = useAuth();
   console.log(loggedinUser);
   redirect(`/app/dashboard`);
-  return (
+  return ( 
     <div>
       <p>Hello World</p>
     </div>

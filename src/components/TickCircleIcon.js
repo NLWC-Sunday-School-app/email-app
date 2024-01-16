@@ -1,6 +1,6 @@
 import React from "react";
 
-export const TickCircleIcon = ({ size = 24, width, height, color, onClick, ...props }) => (
+export const TickCircleIcon = ({ size = 24, width = 24, height = 24, color = "currentColor", onClick=null, ...props }) => (
     <div onClick={onClick}>
         <svg
             aria-hidden="true"

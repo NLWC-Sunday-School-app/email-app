@@ -164,7 +164,7 @@ export default function Home() {
   );
 }
 
-export function DeleteModal({ isOpen, onOpen, onOpenChange }) {
+ function DeleteModal({ isOpen, onOpen, onOpenChange }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -278,7 +278,7 @@ export function DeleteModal({ isOpen, onOpen, onOpenChange }) {
     </Modal>
   );
 }
-export function CancelModal({ isOpen, onOpen, onOpenChange }) {
+ function CancelModal({ isOpen, onOpen, onOpenChange }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 

@@ -7,7 +7,7 @@ import "md-editor-rt/lib/style.css";
 import dynamic from "next/dynamic";
 import "@uiw/react-markdown-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
-import MarkdownEditor from "@uiw/react-markdown-editor";
+// import MarkdownEditor from "@uiw/react-markdown-editor";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Checkbox, Input, Select, SelectItem } from "@nextui-org/react";
 import { MDXEditor, headingsPlugin } from "@mdxeditor/editor";
@@ -15,32 +15,24 @@ import { MDXEditor, headingsPlugin } from "@mdxeditor/editor";
 import { Suspense } from "react";
 import EasyEdit from "react-easy-edit";
 
-import MDEditor from "@uiw/react-md-editor";
-
-import "./globals.css";
+import "@/components/template-globals.css";
 
 const mdStr = ``;
+
+const MarkdownEditor = dynamic(
+  () => import("@uiw/react-markdown-editor").then((mod) => mod.default),
+  { ssr: false }
+);
 
 export default function Home() {
   const { loggedinUser }: any = useAuth();
   console.log(loggedinUser);
-  const [markdown, setMarkdown] = useState(mdStr);
+  const [markdown, setMarkdown] = useState("");
   const [text, setText] = useState("# Hello Editor");
   const [name, setName] = useState("Untitled Template");
   const [isPreview, setIsPreview] = useState(false);
-  const markdowns = `
-Hello **world**!
-`;
 
   const router = useRouter();
-  const EditorComp = dynamic(() => import("@/components/EditorComponent"), {
-    ssr: false,
-  });
-
-  // const MarkdownEditor = dynamic(
-  //   () => import("@uiw/react-markdown-editor").then((mod) => mod.default),
-  //   { ssr: false }
-  // );
 
   return (
     <div
@@ -114,8 +106,8 @@ Hello **world**!
           >
             <MarkdownEditor
               value={markdown}
-              onChange={(value, viewUpdate) => setMarkdown(value)}
-              height="700px"
+              onChange={(value) => setMarkdown(value)}
+              // height="700px"
               hideToolbar
               style={
                 {
@@ -124,10 +116,9 @@ Hello **world**!
                 }
               }
             />
+            {/* <Suspense fallback={null}>
+            </Suspense> */}
           </div>
-          {/* <MDXEditor markdown="# Hello world" plugins={[headingsPlugin()]} />
-          <EditorComp markdown={markdowns} />
-          <Suspense fallback={null}></Suspense> */}
         </div>
         <div
           style={{
@@ -175,7 +166,7 @@ Hello **world**!
   );
 }
 
-export const animals = [
+const animals = [
   {
     label: "Cat",
     value: "cat",

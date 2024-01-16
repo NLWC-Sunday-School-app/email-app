@@ -137,7 +137,7 @@ export function EditModal({ isOpen, onOpen, onOpenChange }) {
     )
 }
 
-export default function CustomTable({ headers, data, columns, page, setPage, rowsPerPage, setRowsPerPage, searchText, setSearchText, pages, setPages, renderActionCell }) {
+export default function CustomTable({ headers, data, columns, page, setPage, rowsPerPage, setRowsPerPage, searchText, setSearchText, pages, setPages, renderActionCell=null }) {
     const users = data
     const headerColumns = columns
 

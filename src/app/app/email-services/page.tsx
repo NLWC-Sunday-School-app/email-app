@@ -127,7 +127,7 @@ export default function Home() {
   );
 }
 
-export function AddNewModal({ isOpen, setIsOpen }) {
+ function AddNewModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -667,7 +667,7 @@ export function AddNewModal({ isOpen, setIsOpen }) {
   );
 }
 
-export function EditModal({ isOpen, setIsOpen }) {
+ function EditModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -1207,7 +1207,7 @@ export function EditModal({ isOpen, setIsOpen }) {
   );
 }
 
-export function TestServiceModal({ isOpen, setIsOpen }) {
+ function TestServiceModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -1404,7 +1404,7 @@ export function TestServiceModal({ isOpen, setIsOpen }) {
   );
 }
 
-export function DeleteModal({ isOpen, setIsOpen }) {
+ function DeleteModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -1525,7 +1525,7 @@ export function DeleteModal({ isOpen, setIsOpen }) {
   );
 }
 
-export const animals = [
+ const animals = [
   {
     label: "Mailgun",
     value: "mailgun",
@@ -1547,7 +1547,8 @@ export const animals = [
     description: "The king of the jungle",
   },
 ];
-export const zones = [
+
+const zones = [
   {
     label: "EU",
     value: "eu",

@@ -135,7 +135,7 @@ export default function Home() {
   );
 }
 
-export function DeleteModal({ isOpen, setIsOpen }) {
+ function DeleteModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -190,7 +190,6 @@ export function DeleteModal({ isOpen, setIsOpen }) {
   const submitModal = () => {
     console.log("submitModal");
     console.log(enableSubmit);
-    onClose();
   };
   return (
     <Modal
@@ -252,7 +251,7 @@ export function DeleteModal({ isOpen, setIsOpen }) {
     </Modal>
   );
 }
-export function AddNewModal({ isOpen, setIsOpen }) {
+ function AddNewModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -288,13 +287,12 @@ export function AddNewModal({ isOpen, setIsOpen }) {
     return false;
   }, [firstName, lastName, email]);
 
-  const submitModal = ({ onClose }) => {
+  const submitModal = () => {
     console.log("submitModal");
     setFirstName("");
     setLastName("");
     setEmail("");
     setIsOpen(false);
-    onClose();
   };
   return (
     <Modal
@@ -404,7 +402,7 @@ export function AddNewModal({ isOpen, setIsOpen }) {
               </Button>
               <Button
                 color="primary"
-                onPress={() => submitModal((onClose = { onClose }))}
+                onPress={() => submitModal()}
                 isDisabled={!enableSubmit}
               >
                 Save
@@ -416,7 +414,7 @@ export function AddNewModal({ isOpen, setIsOpen }) {
     </Modal>
   );
 }
-export function EditModal({ isOpen, setIsOpen }) {
+ function EditModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -452,13 +450,12 @@ export function EditModal({ isOpen, setIsOpen }) {
     return false;
   }, [firstName, lastName, email]);
 
-  const submitModal = ({ onClose }) => {
+  const submitModal = () => {
     console.log("submitModal");
     setFirstName("");
     setLastName("");
     setEmail("");
     setIsOpen(false);
-    onClose();
   };
   return (
     <Modal
@@ -568,7 +565,7 @@ export function EditModal({ isOpen, setIsOpen }) {
               </Button>
               <Button
                 color="primary"
-                onPress={() => submitModal((onClose = { onClose }))}
+                onPress={() => submitModal()}
                 isDisabled={!enableSubmit}
               >
                 Save

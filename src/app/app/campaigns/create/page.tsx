@@ -976,7 +976,7 @@ export default function Home() {
   );
 }
 
-export function DeleteModal({ isOpen, setIsOpen }) {
+ function DeleteModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -1097,7 +1097,7 @@ export function DeleteModal({ isOpen, setIsOpen }) {
   );
 }
 
-export const animals = [
+ const animals = [
   {
     label: "Cat",
     value: "cat",
@@ -1158,7 +1158,7 @@ export const animals = [
   },
 ];
 
-export const sampleTemplate = `<!doctype html>
+ const sampleTemplate = `<!doctype html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
   <head>
     <title></title>

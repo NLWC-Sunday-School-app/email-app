@@ -1,5 +1,5 @@
 import React from "react";
-export const DocumentUploadIcon = ({ size = 24, width, height, ...props }) => (
+export const DocumentUploadIcon = ({ size = 24, width = 24, height = 24, ...props }) => (
     <svg
         aria-hidden="true"
         fill="none"

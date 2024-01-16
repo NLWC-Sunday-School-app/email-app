@@ -40,9 +40,9 @@ export default function Home() {
     ],
   });
 
-  const { loggedinUser }: any = useAuth();
+  const { loggedinUser }= useAuth();
   console.log(loggedinUser);
-  const [selected, setSelected] = React.useState("photos");
+  const [selected, setSelected] = React.useState("overview");
 
   const pathname = usePathname();
 
@@ -270,7 +270,7 @@ export default function Home() {
   );
 }
 
-export const Data = [
+ const Data = [
   {
     id: 1,
     year: 2016,

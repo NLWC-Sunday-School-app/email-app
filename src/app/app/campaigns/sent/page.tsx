@@ -15,10 +15,11 @@ import {
 } from "@nextui-org/dropdown";
 import { Button } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
+import { IoMdAdd } from "react-icons/io";
 
 export default function Home() {
   const { loggedinUser }: any = useAuth();
-  console.log(loggedinUser);
+  // console.log(loggedinUser);
 
   const router = useRouter();
 
@@ -28,7 +29,12 @@ export default function Home() {
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "NAME", uid: "name" },
+    {
+      name: "NAME",
+      uid: "name",
+      link: "app/users/{user.name}",
+      linkKey: "user.name",
+    },
     { name: "SENT", uid: "sent" },
     { name: "OPENED", uid: "opened" },
     { name: "CLICKED", uid: "clicked" },
@@ -128,7 +134,7 @@ export default function Home() {
           }}
           onClick={() => router.push("/app/campaigns/create")}
         >
-          <p>he</p>
+          <IoMdAdd size={15} />
           New Campaign
         </button>
       </div>
@@ -146,6 +152,7 @@ export default function Home() {
           pages={pages}
           setPages={setPages}
           renderActionCell={actionCell}
+          // dataIsLink={["name"]}
         />
       </div>
     </div>

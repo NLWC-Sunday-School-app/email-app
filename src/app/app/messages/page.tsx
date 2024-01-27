@@ -50,10 +50,22 @@ export default function Home() {
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "NAME", uid: "name" },
-    { name: "NUMBER OF SUBSCRIBERS", uid: "subscribers" },
-    { name: "DATE CREATED", uid: "created_at" },
-    { name: "", uid: "actions" },
+    { name: "DATE", uid: "created_at" },
+    { name: "SUBJECT", uid: "subject" },
+    {
+      name: "CAMPAIGN",
+      uid: "campaign",
+      link: "app/users/{user.name}",
+      linkKey: "user.name",
+    },
+    {
+      name: "SUBSCRIBER",
+      uid: "subscriber",
+      link: "app/users/{user.name}",
+      linkKey: "user.name",
+    },
+    { name: "STATUS", uid: "status" },
+    // { name: "", uid: "actions" },
   ];
 
   const [page, setPage] = React.useState(1);
@@ -71,7 +83,7 @@ export default function Home() {
           paddingTop: "20px",
         }}
       >
-        <button
+        {/* <button
           style={{
             backgroundColor: "#5d63ff",
             borderRadius: "5px",
@@ -87,7 +99,7 @@ export default function Home() {
         >
           <Add />
           Send New Message
-        </button>
+        </button> */}
       </div>
       <div>
         <CustomTable
@@ -103,6 +115,7 @@ export default function Home() {
           pages={pages}
           setPages={setPages}
           renderActionCell={actionCell}
+          dataIsLink={["subscriber", "campaign"]}
         />
       </div>
     </div>

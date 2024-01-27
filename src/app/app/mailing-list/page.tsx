@@ -2,8 +2,8 @@
 import Image from "next/image";
 import { useAuth } from "../../../context/AuthContext";
 import CustomTable from "../../../components/table";
-import React from "react";
-
+import React, { useState } from "react";
+import { FaPlus } from "react-icons/fa6";
 import { columns, users, statusOptions } from "../../../components/data";
 import {
   Dropdown,
@@ -11,7 +11,16 @@ import {
   DropdownMenu,
   DropdownTrigger,
 } from "@nextui-org/dropdown";
-import { Button, useDisclosure } from "@nextui-org/react";
+import {
+  Button,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  useDisclosure,
+} from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { useRouter } from "next/navigation";
 
@@ -59,6 +68,7 @@ export default function Home() {
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [isOpenAdd, setIsOpenAdd] = useState(false);
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -83,9 +93,10 @@ export default function Home() {
             gap: "3px",
             padding: "10px 15px",
           }}
+          onClick={() => setIsOpenAdd(true)}
         >
-          <p>he</p>
-          Add Email Service
+          <FaPlus />
+          Create New List
         </button>
       </div>
       <div>
@@ -104,6 +115,89 @@ export default function Home() {
           renderActionCell={actionCell}
         />
       </div>
+      <AddNewModal isOpen={isOpenAdd} setIsOpen={setIsOpenAdd} />
     </div>
+  );
+}
+
+function AddNewModal({ isOpen, setIsOpen }) {
+  const validateEmail = (value) =>
+    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
+
+  const [name, setName] = React.useState("");
+  const router = useRouter();
+
+  const enableSubmit = React.useMemo(() => {
+    if (name) return true;
+    return false;
+  }, [name]);
+
+  const submitModal = () => {
+    console.log("submitModal");
+    setName("");
+    setIsOpen(false);
+    router.push("/app/mailing-list/1/view");
+  };
+  return (
+    <Modal
+      isOpen={isOpen}
+      placement="center"
+      scrollBehavior="inside"
+      closeButton={<div></div>}
+    >
+      <ModalContent>
+        {(onClose) => (
+          <div>
+            <ModalHeader className="flex flex-col gap-1">
+              Create New Mailing List
+            </ModalHeader>
+            <ModalBody>
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "5px",
+                }}
+              >
+                <label
+                  style={{ display: "flex", gap: "5px", fontSize: "14px" }}
+                >
+                  Name <p style={{ color: "red" }}>*</p>
+                </label>
+                <Input
+                  radius={"sm"}
+                  isRequired
+                  labelPlacement="outside"
+                  variant="bordered"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                color="danger"
+                variant="flat"
+                onPress={() => {
+                  setName("");
+                }}
+              >
+                Close
+              </Button>
+              <Button
+                color="primary"
+                onPress={() => {
+                  submitModal();
+                }}
+                isDisabled={!enableSubmit}
+              >
+                Save
+              </Button>
+            </ModalFooter>
+          </div>
+        )}
+      </ModalContent>
+    </Modal>
   );
 }

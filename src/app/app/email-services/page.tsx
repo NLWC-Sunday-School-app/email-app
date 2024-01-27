@@ -25,6 +25,7 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
+import { IoMdAdd } from "react-icons/io";
 
 export default function Home() {
   const { loggedinUser }: any = useAuth();
@@ -99,7 +100,7 @@ export default function Home() {
           }}
           onClick={() => setIsOpenAdd(true)}
         >
-          <p>he</p>
+          <IoMdAdd size={15} />
           Add Email Service
         </button>
       </div>

@@ -19,6 +19,7 @@ export default function RootLayout({
         display: "flex",
         flexDirection: "row",
         backgroundColor: "#f4f8ff",
+        height: "100vh",
       }}
     >
       <Sidebar />

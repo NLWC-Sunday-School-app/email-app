@@ -26,6 +26,10 @@ const users = [
         age: "29",
         avatar: "https://i.pravatar.cc/150?u=a042581f4e29026024d",
         email: "tony.reichert@example.com",
+        user: {
+            name: "Tony Reichert",
+            email: "tony.reichert@example.com",
+        }
     },
     {
         id: 2,

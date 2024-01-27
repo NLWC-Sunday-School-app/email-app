@@ -3,15 +3,28 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import CustomTable from "@/components/table";
 import { TickCircleIcon } from "@/components/TickCircleIcon";
-import React, { useState } from "react";
+import React, { useState, Component } from "react";
 import "md-editor-rt/lib/style.css";
 import dynamic from "next/dynamic";
 import "@uiw/react-markdown-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
+import "@/components/template-globals.css";
 
 import MarkdownEditor from "@uiw/react-markdown-editor";
 import { usePathname, useRouter } from "next/navigation";
-import { Button, Input, Select, SelectItem, User, cn } from "@nextui-org/react";
+import {
+  Button,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  Select,
+  SelectItem,
+  User,
+  cn,
+} from "@nextui-org/react";
 import { useInfiniteScroll } from "@nextui-org/use-infinite-scroll";
 import { useTemplatesList } from "@/components/useTemplatesList";
 import { Accordion, AccordionItem, Switch } from "@nextui-org/react";
@@ -19,11 +32,11 @@ import { DatePicker, TimePicker } from "@mui/x-date-pickers";
 import { Card, CardHeader, CardBody, CardFooter } from "@nextui-org/react";
 import { CheckboxGroup, Checkbox } from "@nextui-org/react";
 import Link from "next/link";
+import EasyEdit from "react-easy-edit";
 
 export default function Home() {
   const { loggedinUser }: any = useAuth();
-  console.log(loggedinUser);
-  const [campaignName, setCampaignName] = useState("");
+  const [campaignName, setCampaignName] = useState("Untitled Campaign");
   const [mailSubject, setMailSubject] = useState("");
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
@@ -35,6 +48,7 @@ export default function Home() {
   const [sendTime, setSendTime] = React.useState("send-now");
   const [sendLaterTime, setSendLaterTime] = React.useState("");
   const [sendLaterDate, setSendLaterDate] = React.useState("");
+  const [isOpenDelete, setIsOpenDelete] = useState(false);
 
   const clearContents = () => {
     setCampaignName("");
@@ -77,18 +91,26 @@ export default function Home() {
   const [selectedKeys, setSelectedKeys] = React.useState(new Set(["1"]));
   const defaultContent =
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
-
+  const save = (value) => {
+    // alert(value);
+    setCampaignName(value);
+  };
+  const cancel = () => {
+    alert("Cancelled");
+  };
   return (
     <div>
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           alignSelf: "center",
           gap: "10px",
+          paddingLeft: "10px",
           paddingRight: "10px",
           paddingTop: "20px",
           height: "100%",
+          fontSize: "30px",
         }}
       >
         {/* <Button
@@ -106,11 +128,19 @@ export default function Home() {
         >
           Edit
         </Button> */}
+        <EasyEdit
+          type="text"
+          onSave={save}
+          attributes={{ name: "awesome-input", id: 1 }}
+          // instructions="Star this repo!"
+          saveOnBlur
+          value={campaignName}
+        />
         <Button
           color="danger"
           style={{ borderRadius: "5px" }}
           onPress={() => {
-            router.push("/app/campaigns/2/status");
+            setIsOpenDelete(true);
           }}
         >
           Cancel
@@ -539,7 +569,7 @@ export default function Home() {
               key="5"
               aria-label="Tracking Option"
               subtitle="What should we track after sending the mail?"
-              title="Send time"
+              title="Tracking Option"
               startContent={<TickCircleIcon color={"lightgrey"} />}
             >
               <div
@@ -607,38 +637,7 @@ export default function Home() {
                     </div>
                   </Switch>
                 </div>
-                {sendTime == "send-later" && (
-                  <div
-                    style={{
-                      flex: 1,
-                      gap: "20px",
-                      paddingTop: "20px",
-                    }}
-                    className="flex md:flex-row flex-col"
-                  >
-                    <div>
-                      <p>Select Date</p>
-                      <DatePicker
-                        value={sendLaterDate}
-                        onChange={(newValue) => {
-                          console.log(newValue);
-                          setSendLaterDate(newValue);
-                        }}
-                      />
-                    </div>
 
-                    <div>
-                      <p>Select Time</p>
-                      <TimePicker
-                        value={sendLaterTime}
-                        onChange={(newValue) => {
-                          console.log(newValue);
-                          setSendLaterTime(newValue);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
                 <div
                   style={{
                     display: "flex",
@@ -746,7 +745,7 @@ export default function Home() {
                     <MarkdownEditor
                       value={mailContent}
                       onChange={(value, viewUpdate) => setMailContent(value)}
-                      width="100%"
+                      // width="100%"
                       height="100%"
                     />
                   </div>
@@ -788,6 +787,117 @@ export default function Home() {
               </div>
             </AccordionItem>
           </Accordion>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              flex: 2,
+              position: "static",
+            }}
+            className=""
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                margin: "30px 10px",
+                padding: "30px 20px",
+                backgroundColor: "white",
+              }}
+              className="shadow rounded"
+            >
+              <p style={{ fontSize: "20px", fontWeight: "600", color: "#555" }}>
+                Test Email
+              </p>
+              <br />
+              <hr></hr>
+              <br />
+
+              {/* <div>sampleTemplate</div> */}
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "5px",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    gap: "5px",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    color: "#555",
+                  }}
+                >
+                  RECIPIENT
+                </label>
+                <Input
+                  radius={"sm"}
+                  isRequired
+                  size="sm"
+                  placeholder="Enter your email"
+                  variant="bordered"
+                  // value={toEmail}
+                  // onChange={(e) => setToEmail(e.target.value)}
+                  // isInvalid={isToEmailInvalid}
+                  // errorMessage={isToEmailInvalid ? "Please enter a valid email" : ""}
+                />
+              </div>
+              <br />
+              <button
+                style={{
+                  borderRadius: "3px",
+                  padding: "5px 10px",
+                  fontSize: "11px",
+                  color: "#5d63ff",
+                  backgroundColor: "#d9e2ec",
+                  width: "120px",
+                }}
+                onClick={() => {
+                  alert("Email Sent");
+                }}
+              >
+                Send Test Email
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignSelf: "center",
+                gap: "10px",
+                paddingBottom: "30px",
+              }}
+            >
+              <Button
+                color="default"
+                radius="sm"
+                style={{
+                  borderRadius: "5px",
+                  borderWidth: "0.5px",
+                  backgroundColor: "white",
+                }}
+                onPress={() => {
+                  router.push("/app/campaigns");
+                }}
+                className="border-2 "
+              >
+                Back
+              </Button>
+              <Button
+                color="primary"
+                style={{ borderRadius: "5px" }}
+                onPress={() => {
+                  router.push("/app/campaigns/2/status");
+                }}
+              >
+                Send Campaign
+              </Button>
+            </div>
+          </div>
         </div>
         <div
           style={{
@@ -832,225 +942,133 @@ export default function Home() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          flex: 2,
-          position: "static",
-        }}
-        className=""
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            margin: "30px 10px",
-            padding: "30px 20px",
-            backgroundColor: "white",
-          }}
-          className="shadow rounded"
-        >
-          <p style={{ fontSize: "20px", fontWeight: "600", color: "#555" }}>
-            Test Email
-          </p>
-          <br />
-          <hr></hr>
-          <br />
-
-          {/* <div>sampleTemplate</div> */}
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "5px",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                gap: "5px",
-                fontSize: "14px",
-                fontWeight: "700",
-                color: "#555",
-              }}
-            >
-              RECIPIENT
-            </label>
-            <Input
-              radius={"sm"}
-              isRequired
-              size="sm"
-              placeholder="Enter your email"
-              variant="bordered"
-              // value={toEmail}
-              // onChange={(e) => setToEmail(e.target.value)}
-              // isInvalid={isToEmailInvalid}
-              // errorMessage={isToEmailInvalid ? "Please enter a valid email" : ""}
-            />
-          </div>
-          <br />
-          <button
-            style={{
-              borderRadius: "3px",
-              padding: "5px 10px",
-              fontSize: "11px",
-              color: "#5d63ff",
-              backgroundColor: "#d9e2ec",
-              width: "120px",
-            }}
-            onClick={() => {
-              alert("Email Sent");
-            }}
-          >
-            Send Test Email
-          </button>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            margin: "30px 10px",
-            padding: "30px 20px",
-            backgroundColor: "white",
-            gap: "10px",
-          }}
-          className="shadow rounded"
-        >
-          <p style={{ fontSize: "20px", fontWeight: "600", color: "#555" }}>
-            Sending options
-          </p>
-          <hr></hr>
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "5px",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                gap: "5px",
-                fontSize: "14px",
-                fontWeight: "700",
-              }}
-            >
-              RECIPIENTS
-            </label>
-            <Select
-              size="sm"
-              aria-label="Select Template"
-              variant={"bordered"}
-              placeholder="Select Tags"
-            >
-              {animals.map((animal) => (
-                <SelectItem key={animal.value} value={animal.value}>
-                  {animal.label}
-                </SelectItem>
-              ))}
-            </Select>
-          </div>
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "5px",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                gap: "5px",
-                fontSize: "14px",
-                fontWeight: "700",
-              }}
-            >
-              SCHEDULE
-            </label>
-            <Select
-              size="sm"
-              aria-label="Select Template"
-              variant={"bordered"}
-              placeholder=""
-            >
-              {animals.map((animal) => (
-                <SelectItem key={animal.value} value={animal.value}>
-                  {animal.label}
-                </SelectItem>
-              ))}
-            </Select>
-          </div>
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "5px",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                gap: "5px",
-                fontSize: "14px",
-                fontWeight: "700",
-              }}
-            >
-              SENDING BEHAVIOUR
-            </label>
-            <Select size="sm" aria-label="Select Template" variant={"bordered"}>
-              {animals.map((animal) => (
-                <SelectItem key={animal.value} value={animal.value}>
-                  {animal.label}
-                </SelectItem>
-              ))}
-            </Select>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignSelf: "center",
-            gap: "10px",
-          }}
-        >
-          <Button
-            color="default"
-            radius="sm"
-            style={{
-              borderRadius: "5px",
-              borderWidth: "0.5px",
-              backgroundColor: "white",
-            }}
-            onPress={() => {
-              router.push("/app/campaigns");
-            }}
-            className="border-2 "
-          >
-            Back
-          </Button>
-          <Button
-            color="primary"
-            style={{ borderRadius: "5px" }}
-            onPress={() => {
-              router.push("/app/campaigns/2/status");
-            }}
-          >
-            Send Campaign
-          </Button>
-        </div>
-      </div>
+      <DeleteModal isOpen={isOpenDelete} setIsOpen={setIsOpenDelete} />
     </div>
   );
 }
 
- const animals = [
+function DeleteModal({ isOpen, setIsOpen }) {
+  const validateEmail = (value) =>
+    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
+
+  const [toEmail, setToEmail] = React.useState("");
+  // const [isToEmailInvalid, setIsToEmailInvalid] = React.useState(false);
+
+  const [fromEmail, setFromEmail] = React.useState("");
+  // const [isFromEmailInvalid, setIsFromEmailInvalid] = React.useState(false);
+
+  const [subject, setSubject] = React.useState("");
+  // const [isSubjectInvalid, setIsSubjectInvalid] = React.useState(false);
+
+  const [description, setDescription] = React.useState("");
+  // const [isDescriptionInvalid, setIsDescriptionInvalid] = React.useState("");
+
+  const isToEmailInvalid = React.useMemo(() => {
+    if (toEmail === "") return false;
+
+    return validateEmail(toEmail) ? false : true;
+  }, [toEmail]);
+
+  const isFromEmailInvalid = React.useMemo(() => {
+    if (fromEmail === "") return false;
+
+    return validateEmail(fromEmail) ? false : true;
+  }, [fromEmail]);
+
+  const isSubjectInvalid = React.useMemo(() => {
+    console.log(subject);
+    if (!subject) return false;
+    return false;
+  }, [subject]);
+
+  const isDescriptionInvalid = React.useMemo(() => {
+    if (description === "") return false;
+    return false;
+  }, [description]);
+
+  const enableSubmit = React.useMemo(() => {
+    if (
+      description &&
+      subject &&
+      fromEmail &&
+      toEmail &&
+      !isToEmailInvalid &&
+      !isFromEmailInvalid
+    )
+      return true;
+    return false;
+  }, [description, subject, fromEmail, toEmail]);
+
+  const submitModal = () => {
+    console.log("submitModal");
+    console.log(enableSubmit);
+  };
+  return (
+    <Modal
+      isOpen={isOpen}
+      // onOpenChange={onOpenChange}
+      placement="auto"
+      scrollBehavior="inside"
+      backdrop="blur"
+      isDismissable={false}
+      closeButton={<div></div>}
+    >
+      <ModalContent>
+        {(onClose) => (
+          <div>
+            <ModalHeader className="flex flex-col gap-1">
+              Confirm Delete: Test
+            </ModalHeader>
+            <ModalBody>
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "5px",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: "#555",
+                  }}
+                >
+                  Are you sure that you want to delete the
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "700",
+                      color: "#555",
+                    }}
+                  >
+                    {" "}
+                    Folakunmi Aremu{" "}
+                  </span>
+                  campaign?
+                </p>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                color="default"
+                variant="flat"
+                onPress={() => setIsOpen(false)}
+              >
+                Close
+              </Button>
+              <Button color="danger" onPress={() => setIsOpen(false)}>
+                Delete
+              </Button>
+            </ModalFooter>
+          </div>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+}
+
+const animals = [
   {
     label: "Cat",
     value: "cat",
@@ -1111,7 +1129,7 @@ export default function Home() {
   },
 ];
 
- const sampleTemplate = `<!doctype html>
+const sampleTemplate = `<!doctype html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
   <head>
     <title></title>

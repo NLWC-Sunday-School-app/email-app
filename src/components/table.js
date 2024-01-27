@@ -137,7 +137,7 @@ export function EditModal({ isOpen, onOpen, onOpenChange }) {
     )
 }
 
-export default function CustomTable({ headers, data, columns, page, setPage, rowsPerPage, setRowsPerPage, searchText, setSearchText, pages, setPages, renderActionCell=null }) {
+export default function CustomTable({ headers, data, columns, page, setPage, rowsPerPage, setRowsPerPage, searchText, setSearchText, pages, setPages, renderActionCell = null, dataIsLink = [], customBottomContent = null, customTopContent = null }) {
     const users = data
     const headerColumns = columns
 
@@ -223,8 +223,15 @@ export default function CustomTable({ headers, data, columns, page, setPage, row
         cancelled: "danger",
     };
 
-    const renderCell = React.useCallback((user, columnKey) => {
-        const cellValue = user[columnKey];
+    const renderCell = React.useCallback((user, columnKey, column) => {
+        const keys = columnKey.split('.');
+
+        const cellValue = keys.reduce((result, key) => {
+            if (result && typeof result === 'object' && key in result) {
+                return result[key];
+            }
+            return undefined; // return undefined if the key doesn't exist in the nested structure
+        }, user);
 
         switch (columnKey) {
             case "status":
@@ -254,6 +261,23 @@ export default function CustomTable({ headers, data, columns, page, setPage, row
                     </div>
                 );
             default:
+                if (dataIsLink.includes(columnKey)) {
+                    const selectedColumn = columns.find(item => item.uid === columnKey);
+                    if (selectedColumn) {
+                        const selectedColumnkeys = selectedColumn.linkKey.split('.');
+                        const linkValue = selectedColumnkeys.reduce((result, key) => {
+                            if (result && typeof result === 'object' && key in result) {
+                                return result[key];
+                            }
+                            return undefined; // return undefined if the key doesn't exist in the nested structure
+                        }, user);
+                        let link = selectedColumn.link.replace(/{([^}]+)}/g, linkValue);
+                        return (<Link href={link} style={{ color: 'blue', textDecoration: 'underline' }}> {cellValue}</Link >)
+
+                    }
+
+
+                }
                 return cellValue;
         }
     }, []);
@@ -261,6 +285,9 @@ export default function CustomTable({ headers, data, columns, page, setPage, row
 
 
     const topContent = React.useMemo(() => {
+        if (customTopContent) {
+            return customTopContent
+        }
         return (
             <div className="flex flex-col gap-4">
                 <div className="flex justify-between gap-3 items-end">
@@ -305,6 +332,9 @@ export default function CustomTable({ headers, data, columns, page, setPage, row
 
 
     const bottomContent = React.useMemo(() => {
+        if (customBottomContent) {
+            return customBottomContent
+        }
         return (
             <div className="flex w-full justify-center">
                 <Pagination
@@ -350,25 +380,13 @@ export default function CustomTable({ headers, data, columns, page, setPage, row
                     )}
                 </TableHeader>
                 <TableBody emptyContent={"No data found"} items={sortedItems}>
-                    {(item) => (
+                    {(item, column) => (
                         <TableRow key={item.id}>
-                            {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+                            {(columnKey, column) => <TableCell>{renderCell(item, columnKey, column)}</TableCell>}
                         </TableRow>
                     )}
                 </TableBody>
             </Table>
-            <EditModal isOpen={isOpen} onOpenChange={onOpenChange} onOpen={onOpen} />
         </div>
-        // <ModalComponentContainer components={modalComponents} />
     );
 }
-
-const ModalComponentContainer = ({ components }) => {
-    return (
-        <div>
-            {components && components.map((Component, index) => (
-                <Component key={index} />
-            ))}
-        </div>
-    );
-};

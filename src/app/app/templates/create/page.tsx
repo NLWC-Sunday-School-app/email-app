@@ -3,8 +3,8 @@ import Image from "next/image";
 import { useAuth } from "../../../../context/AuthContext";
 import CustomTable from "../../../../components/table";
 import React, { useState } from "react";
-import "md-editor-rt/lib/style.css";
 import dynamic from "next/dynamic";
+import "md-editor-rt/lib/style.css";
 import "@uiw/react-markdown-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
 // import MarkdownEditor from "@uiw/react-markdown-editor";
@@ -16,6 +16,9 @@ import { Suspense } from "react";
 import EasyEdit from "react-easy-edit";
 
 import "@/components/template-globals.css";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+import { Switch } from "@nextui-org/react";
 
 const mdStr = ``;
 
@@ -27,10 +30,12 @@ const MarkdownEditor = dynamic(
 export default function Home() {
   const { loggedinUser }: any = useAuth();
   console.log(loggedinUser);
+  const [richText, setRichText] = useState("");
   const [markdown, setMarkdown] = useState("");
   const [text, setText] = useState("# Hello Editor");
   const [name, setName] = useState("Untitled Template");
   const [isPreview, setIsPreview] = useState(false);
+  const [isMarkup, setIsMarkup] = React.useState(true);
 
   const router = useRouter();
 
@@ -52,18 +57,63 @@ export default function Home() {
           padding: "30px 0px",
           paddingBottom: "10px",
           fontSize: "30px",
+          width: "100%",
         }}
       >
-        <EasyEdit
-          type="text"
-          onSave={(value) => {
-            setName(value);
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            width: "100%",
           }}
-          attributes={{ name: "awesome-input", id: 1 }}
-          // instructions="Star this repo!"
-          saveOnBlur
-          value={name}
-        />
+        >
+          <EasyEdit
+            type="text"
+            onSave={(value) => {
+              setName(value);
+            }}
+            attributes={{ name: "awesome-input", id: 1 }}
+            // instructions="Star this repo!"
+            saveOnBlur
+            value={name}
+          />
+          <div style={{ display: "flex", gap: "10px" }}>
+            <Button
+              color="primary"
+              style={{
+                borderRadius: "5px",
+                flexDirection: "row",
+                display: "flex",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "12px",
+                alignItems: "center",
+                gap: "3px",
+                padding: "10px 15px",
+              }}
+              onClick={() => router.push("/app/templates")}
+            >
+              Save
+            </Button>
+            <Button
+              color="danger"
+              style={{
+                borderRadius: "5px",
+                flexDirection: "row",
+                display: "flex",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "12px",
+                alignItems: "center",
+                gap: "3px",
+                padding: "10px 15px",
+              }}
+              onClick={() => router.push("/app/templates")}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div
@@ -84,38 +134,78 @@ export default function Home() {
             flex: 1,
           }}
         >
-          <p
+          <div
             style={{
               display: "flex",
-              gap: "5px",
-              fontSize: "20px",
-              padding: "20px 0px",
+              flexDirection: "row",
+              alignItems: "space-between",
+              justifyContent: "space-between",
+              width: "100%",
             }}
           >
-            Content
-          </p>
+            <p
+              style={{
+                display: "flex",
+                gap: "5px",
+                fontSize: "20px",
+                padding: "20px 0px",
+              }}
+            >
+              Content
+            </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <p style={{ fontSize: "10px" }}>RichText Editor</p>
+              <Switch isSelected={isMarkup} onValueChange={setIsMarkup}>
+                {" "}
+                <p style={{ fontSize: "10px" }}>Markup Editor</p>
+              </Switch>
+            </div>
+          </div>
           <div
             style={{
               backgroundColor: "white",
-              // padding: "20px 10px",
               gap: "20px",
-              // margin: "30px 20px",
+              height: "700px",
               width: "100%",
               boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
             }}
           >
-            <MarkdownEditor
-              value={markdown}
-              onChange={(value) => setMarkdown(value)}
-              // height="700px"
-              hideToolbar
-              style={
-                {
+            {!isMarkup && (
+              <ReactQuill
+                theme="snow"
+                value={richText}
+                onChange={setRichText}
+                modules={Modules}
+                formats={Formats}
+                style={{
+                  height: "90%",
+                }}
+              />
+            )}
+
+            {isMarkup && (
+              <MarkdownEditor
+                value={markdown}
+                onChange={(value) => {
+                  console.log("md", value);
+
+                  setMarkdown(value);
+                }}
+                // height="700px"
+                width="100%"
+                hideToolbar
+                style={{
                   // display: "flex",
-                  // flex: 1,
-                }
-              }
-            />
+                  flex: 1,
+                }}
+              />
+            )}
             {/* <Suspense fallback={null}>
             </Suspense> */}
           </div>
@@ -148,17 +238,13 @@ export default function Home() {
             name="123532render"
             style={{
               height: "100%",
-              // minHeight: "700px",
               width: "100%",
               backgroundColor: "white",
-              // padding: "20px 10px",
               gap: "20px",
-              // margin: "30px 20px",
-              // width: "100%",
               boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
             }}
             sandbox="allow-scripts allow-same-origin"
-            srcDoc={markdown}
+            srcDoc={isMarkup ? markdown : richText}
           />
         </div>
       </div>
@@ -225,4 +311,41 @@ const animals = [
     value: "crocodile",
     description: "A large semiaquatic reptile",
   },
+];
+
+const Modules = {
+  toolbar: [
+    [{ header: "1" }, { header: "2" }, { font: [] }],
+    [{ size: [] }],
+    ["bold", "italic", "underline", "strike", "blockquote"],
+    [
+      { list: "ordered" },
+      { list: "bullet" },
+      { indent: "-1" },
+      { indent: "+1" },
+    ],
+    ["link", "image", "video"],
+    ["clean"],
+  ],
+  clipboard: {
+    // toggle to add extra line breaks when pasting HTML:
+    matchVisual: false,
+  },
+};
+
+const Formats = [
+  "header",
+  "font",
+  "size",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "blockquote",
+  "list",
+  "bullet",
+  "indent",
+  "link",
+  "image",
+  "video",
 ];

@@ -24,10 +24,10 @@
 }
 
 .nav-item-data{
-  gap: 5px; 
+  gap: 10px; 
   display: flex; 
   align-items: center; 
-  padding-left: 20px
+  padding-left: 15px
 }
 
 

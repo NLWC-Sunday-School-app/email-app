@@ -3,7 +3,8 @@ import Image from "next/image";
 import { useAuth } from "../../../../../context/AuthContext";
 import CustomTable from "@/components/table";
 import React, { useEffect, useState } from "react";
-
+import { FaFileUpload } from "react-icons/fa";
+import { FaPlus } from "react-icons/fa";
 import { columns, users, statusOptions } from "@/components/data";
 import {
   Dropdown,
@@ -22,7 +23,9 @@ import {
   Textarea,
   useDisclosure,
 } from "@nextui-org/react";
+import * as XLSX from "xlsx";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
+import { promises as fs } from "fs";
 
 export default function Home() {
   const { loggedinUser }: any = useAuth();
@@ -30,10 +33,7 @@ export default function Home() {
   const [isOpenDelete, setIsOpenDelete] = useState(false);
   const [isOpenAdd, setIsOpenAdd] = useState(false);
   const [isOpenEdit, setIsOpenEdit] = useState(false);
-
-  useEffect(() => {
-    console.log(isOpenDelete);
-  }, [isOpenDelete]);
+  const [isOpenUpload, setIsOpenUpload] = useState(false);
 
   const actionCell = (item) => {
     return (
@@ -87,9 +87,10 @@ export default function Home() {
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             alignItems: "flex-end",
             paddingTop: "20px",
+            gap: "20px",
           }}
         >
           <button
@@ -107,8 +108,27 @@ export default function Home() {
             }}
             onClick={() => setIsOpenAdd(true)}
           >
-            <p>he</p>
+            <FaPlus />
             Add Recipient
+          </button>
+          <button
+            style={{
+              backgroundColor: "transparent",
+              borderRadius: "5px",
+              borderWidth: "1px",
+              flexDirection: "row",
+              display: "flex",
+              justifyContent: "center",
+              color: "black",
+              fontSize: "12px",
+              alignItems: "center",
+              gap: "3px",
+              padding: "10px 15px",
+            }}
+            onClick={() => setIsOpenUpload(true)}
+          >
+            <FaFileUpload size={15} />
+            Import Recipients
           </button>
         </div>
       </div>
@@ -131,11 +151,12 @@ export default function Home() {
       <DeleteModal isOpen={isOpenDelete} setIsOpen={setIsOpenDelete} />
       <AddNewModal isOpen={isOpenAdd} setIsOpen={setIsOpenAdd} />
       <EditModal isOpen={isOpenEdit} setIsOpen={setIsOpenEdit} />
+      <UploadExcelModal isOpen={isOpenUpload} setIsOpen={setIsOpenUpload} />
     </div>
   );
 }
 
- function DeleteModal({ isOpen, setIsOpen }) {
+function DeleteModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -251,7 +272,7 @@ export default function Home() {
     </Modal>
   );
 }
- function AddNewModal({ isOpen, setIsOpen }) {
+function AddNewModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -414,7 +435,132 @@ export default function Home() {
     </Modal>
   );
 }
- function EditModal({ isOpen, setIsOpen }) {
+function UploadExcelModal({ isOpen, setIsOpen }) {
+  const validateEmail = (value) =>
+    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
+
+  const [file, setFile] = useState(null);
+  const [jsonData, setJsonData] = useState([]);
+
+  useEffect(() => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+        setJsonData(json);
+      };
+      reader.readAsBinaryString(file);
+    }
+  }, [file]);
+
+  // useEffect(() => {
+  //   console.log(jsonData);
+  // }, [jsonData]);
+
+  const enableSubmit = React.useMemo(() => {
+    if (file) return true;
+    return false;
+  }, [file]);
+
+  const submitModal = () => {
+    console.log("submitModal");
+    setFile("");
+    setJsonData([]);
+    setIsOpen(false);
+  };
+  return (
+    <Modal
+      isOpen={isOpen}
+      placement="top"
+      scrollBehavior="inside"
+      closeButton={<div></div>}
+    >
+      <ModalContent>
+        {(onClose) => (
+          <div>
+            <ModalHeader className="flex flex-col gap-1">
+              Upload File
+            </ModalHeader>
+            <ModalBody>
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "5px",
+                }}
+              >
+                {/* <label
+                  style={{ display: "flex", gap: "5px", fontSize: "14px" }}
+                >
+                  First Name <p style={{ color: "red" }}>*</p>
+                </label> */}
+                <input
+                  type="file"
+                  style={{ backgroundColor: "transparent" }}
+                  // value={file}
+                  accept="application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={(e) => {
+                    console.log(e.target.files[0]);
+                    setFile(e.target.files[0]);
+                  }}
+                />
+              </div>
+
+              {jsonData.length > 0 && (
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "5px",
+                  }}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      gap: "5px",
+                      fontSize: "14px",
+                      justifyContent: "center",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {jsonData.length} Recipients {jsonData[0].loanid}
+                  </label>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                color="danger"
+                variant="flat"
+                onPress={() => {
+                  setFile("");
+                  setJsonData([]);
+                  setIsOpen(false);
+                }}
+              >
+                Close
+              </Button>
+              <Button
+                color="primary"
+                onPress={() => submitModal()}
+                isDisabled={!enableSubmit}
+              >
+                Save
+              </Button>
+            </ModalFooter>
+          </div>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+}
+function EditModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 

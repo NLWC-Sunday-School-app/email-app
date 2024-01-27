@@ -25,6 +25,7 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
+import { IoMdAdd } from "react-icons/io";
 
 export default function Home() {
   const pathname = usePathname();
@@ -97,7 +98,7 @@ export default function Home() {
           }}
           onClick={() => router.push("/app/templates/create")}
         >
-          <p>he</p>
+          <IoMdAdd size={15}/>
           New Template
         </button>
       </div>
@@ -115,7 +116,7 @@ export default function Home() {
       >
         <div
           style={{
-            width: "500px",
+            minWidth: "500px",
             backgroundColor: "white",
             height: "600px",
             padding: "15px 20px",
@@ -141,7 +142,18 @@ export default function Home() {
               height: "83%",
             }}
           >
-            <MarkdownEditor.Markdown source={mdStr} />
+            <iframe
+              id="123532"
+              name="123532render"
+              style={{
+                height: "100%",
+                width: "100%",
+                backgroundColor: "white",
+                // boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
+              }}
+              sandbox="allow-scripts allow-same-origin"
+              srcDoc={mdStr}
+            />
           </div>
         </div>
       </div>
@@ -154,7 +166,7 @@ export default function Home() {
   );
 }
 
- function DeleteModal({ isOpen, onOpen, onOpenChange }) {
+function DeleteModal({ isOpen, onOpen, onOpenChange }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -268,7 +280,7 @@ export default function Home() {
     </Modal>
   );
 }
- function CancelModal({ isOpen, onOpen, onOpenChange }) {
+function CancelModal({ isOpen, onOpen, onOpenChange }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 

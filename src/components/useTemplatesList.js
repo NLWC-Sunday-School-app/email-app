@@ -1,6 +1,6 @@
 import React from "react";
 export function useTemplatesList({ fetchDelay = 0 } = {}) {
-    const [items, setItems] = React.useState([{ name: "No Template" }]);
+    const [items, setItems] = React.useState([{ name: "New Template" }]);
     const [hasMore, setHasMore] = React.useState(true);
     const [isLoading, setIsLoading] = React.useState(false);
     const [offset, setOffset] = React.useState(0);

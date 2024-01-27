@@ -24,6 +24,7 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
+import { IoMdAdd } from "react-icons/io";
 
 export default function Home() {
   const pathname = usePathname();
@@ -135,7 +136,7 @@ export default function Home() {
           }}
           onClick={() => router.push("/app/campaigns/create")}
         >
-          <p>he</p>
+          <IoMdAdd size={15} />
           New Campaign
         </button>
       </div>

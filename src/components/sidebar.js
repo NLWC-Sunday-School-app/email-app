@@ -95,49 +95,49 @@ export default function Sidebar() {
                     <Link className={pathname == "/app/dashboard" ? "nav-item active" : "nav-item"} href="/app/dashboard"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <IoMdHome />
+                            <IoMdHome size={20} />
                             <p style={{}}>Dashboard</p>
                         </div>
                     </Link>
                     <Link className={pathname.startsWith("/app/campaigns/") ? "nav-item active" : "nav-item"} href="/app/campaigns/sent"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <IoMdMail />
+                            <IoMdMail size={20} />
                             <p style={{}}>Campaigns</p>
                         </div>
                     </Link>
                     <Link className={pathname.startsWith("/app/templates") ? "nav-item active" : "nav-item"} href="/app/templates"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <HiTemplate />
+                            <HiTemplate size={20} />
                             <p style={{}}>Templates</p>
                         </div>
                     </Link>
                     <Link className={pathname.startsWith("/app/mailing-list") ? "nav-item active" : "nav-item"} href="/app/mailing-list"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <CiViewList />
+                            <CiViewList size={20} />
                             <p style={{}}>Mailing List</p>
                         </div>
                     </Link>
                     <Link className={pathname.startsWith("/app/messages") ? "nav-item active" : "nav-item"} href="/app/messages"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <IoMdMail />
+                            <IoMdMail size={20} />
                             <p style={{}}>Messages</p>
                         </div>
                     </Link>
                     <Link className={pathname.startsWith("/app/email-services") ? "nav-item active" : "nav-item"} href="/app/email-services"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <MdMiscellaneousServices />
+                            <MdMiscellaneousServices size={20} />
                             <p style={{}}>Email Services</p>
                         </div>
                     </Link>
                     <Link className={pathname.startsWith("/app/users") ? "nav-item active" : "nav-item"} href="/app/users"
                     >
                         <div className='nav-item-data' style={{}}>
-                            <CiUser />
+                            <CiUser size={20} />
                             <p style={{}}>Manage Users</p>
                         </div>
                     </Link>

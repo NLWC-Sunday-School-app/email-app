@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Line } from "react-chartjs-2";
 import Chart from "chart.js/auto";
 import { CategoryScale } from "chart.js";
-import { columns, users, statusOptions } from "../../../../../components/data";
+import { users } from "../../../../../components/data";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tab, Tabs } from "@nextui-org/react";
@@ -16,8 +16,65 @@ import {
   MouseSquare,
   Send2,
 } from "iconsax-react";
+import { PiHandTap } from "react-icons/pi";
+import { LuMailOpen } from "react-icons/lu";
+import { HiMailOpen } from "react-icons/hi";
+import { PiHandTapFill } from "react-icons/pi";
+import { IoMdTime } from "react-icons/io";
 
 export default function Home() {
+
+
+  const { loggedinUser } = useAuth();
+  console.log(loggedinUser);
+  const [selected, setSelected] = React.useState("unsubscribes");
+
+  const pathname = usePathname();
+
+
+
+  return (
+    <div className="flex flex-wrap gap-4" style={{}}>
+      <Tabs
+        // key={"underlined"}
+        variant={"underlined"}
+        aria-label="Tabs variants"
+        selectedKey={selected}
+        onSelectionChange={setSelected}
+
+      >
+        <Tab key="overview" title="Overview" style={{ height: '90%' }}>
+          <Overview setSelected={setSelected} />
+        </Tab>
+        <Tab key="recipients" title="Recipients" style={{ width: '100%' }} >
+          <Recipients setSelected={setSelected} />
+        </Tab>
+        <Tab key="opens" title="Opens" >
+          <Opens setSelected={setSelected} />
+        </Tab>
+        <Tab key="clicks" title="Clicks" >
+          <Clicks setSelected={setSelected} />
+        </Tab>
+        <Tab key="bounces" title="Bounces" >
+          <Bounces setSelected={setSelected} />
+        </Tab>
+        <Tab key="unsubscribes" title="Unsubscribes" >
+          <Unsubscribes setSelected={setSelected} />
+        </Tab>
+      </Tabs>
+    </div>
+  );
+}
+
+function customTopContent() {
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-default-400 text-small">Total {users.length} users</span>
+    </div>
+  )
+}
+
+const Overview = ({ setSelected }) => {
   Chart.register(CategoryScale);
 
   const [chartData, setChartData] = useState({
@@ -36,241 +93,683 @@ export default function Home() {
         borderColor: "black",
         borderWidth: 2,
         fill: "origin",
+        height: "90%"
       },
     ],
   });
 
-  const { loggedinUser }= useAuth();
-  console.log(loggedinUser);
-  const [selected, setSelected] = React.useState("overview");
-
-  const pathname = usePathname();
 
   const tableHeaders = ["name", "service", "actions"];
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "NAME", uid: "name" },
-    { name: "SERVICE", uid: "service" },
-    { name: "ACTIONS", uid: "actions" },
+    { name: "URL", uid: "url" },
+    { name: "CLICK COUNT", uid: "clicks" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
-
   return (
-    <div className="flex flex-wrap gap-4" style={{}}>
-      <Tabs
-        // key={"underlined"}
-        variant={"underlined"}
-        aria-label="Tabs variants"
-        selectedKey={selected}
-        onSelectionChange={setSelected}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        margin: "0px 0px",
+        padding: "1px 15px",
+        backgroundColor: "",
+        height: '90%'
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flex: "1 1 100%",
+          gap: "20px",
+        }}
+        className="row mb-4"
       >
-        <Tab key="overview" title="Overview" style={{ flex: 1 }}>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+          onClick={() => setSelected("recipients")}
+        >
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              margin: "0px 0px",
-              padding: "15px 15px",
-              flex: 1,
-              backgroundColor: "",
+              alignItems: "flex-start",
+              justifyContent: "center",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flex: "1 1 100%",
-                gap: "20px",
-              }}
-              className="row mb-4"
-            >
-              <div
-                style={{
-                  backgroundColor: "white",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  height: "130px",
-                  padding: "0px 20px",
-                  flex: 1,
-                  minWidth: "300px",
-                  borderRadius: "4px",
-                  borderBottomWidth: "4px",
-                  borderColor: "#b1b9ff",
-                  cursor: "pointer",
-                }}
-                onClick={() => setSelected("recipients")}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    justifyContent: "center",
-                  }}
-                >
-                  <p style={{ fontSize: "35px" }}>22</p>
-                  <p style={{ fontSize: "13px" }}>EMAILS SENT</p>
-                </div>
-                <Send2 size="32" color="#adb5bd" />
-              </div>
-              <div
-                style={{
-                  backgroundColor: "white",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  height: "130px",
-                  padding: "0px 20px",
-                  flex: 1,
-                  minWidth: "300px",
-                  borderRadius: "4px",
-                  borderBottomWidth: "4px",
-                  borderColor: "#b1b9ff",
-                  cursor: "pointer",
-                }}
-                onClick={() => setSelected("opens")}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    justifyContent: "center",
-                  }}
-                >
-                  <p style={{ fontSize: "35px" }}>0%</p>
-                  <p style={{ fontSize: "13px" }}>UNIQUE OPENS</p>
-                </div>
-                <MessageTick size="32" color="#adb5bd" />
-              </div>
-              <div
-                style={{
-                  backgroundColor: "white",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  height: "130px",
-                  padding: "0px 20px",
-                  flex: 1,
-                  minWidth: "300px",
-                  borderRadius: "4px",
-                  borderBottomWidth: "4px",
-                  borderColor: "#b1b9ff",
-                  cursor: "pointer",
-                }}
-                onClick={() => setSelected("Clicks")}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    justifyContent: "center",
-                  }}
-                >
-                  <p style={{ fontSize: "35px" }}>22%</p>
-                  <p style={{ fontSize: "13px" }}>CLICK RATE</p>
-                </div>
-                <MouseSquare size="32" color="#adb5bd" />
-              </div>
-              <div
-                style={{
-                  backgroundColor: "white",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  height: "130px",
-                  padding: "0px 20px",
-                  flex: 1,
-                  minWidth: "300px",
-                  borderRadius: "4px",
-                  borderBottomWidth: "4px",
-                  borderColor: "#b1b9ff",
-                  cursor: "pointer",
-                }}
-                onClick={() => setSelected("bounces")}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    justifyContent: "center",
-                  }}
-                >
-                  <p style={{ fontSize: "35px" }}>22%</p>
-                  <p style={{ fontSize: "13px" }}>BOUNCE RATE</p>
-                </div>
-                <ArrowSwapHorizontal size="32" color="#adb5bd" />
-              </div>
-            </div>
-            <div
-              style={{
-                width: "100%",
-                height: "400px",
-                backgroundColor: "white",
-                display: "flex",
-                flexDirection: "column",
-                padding: "10px 10px",
-              }}
-            >
-              <p>Unique Opens</p>
-              <br />
-              <hr />
-              <Line
-                data={chartData}
-                options={{
-                  plugins: {
-                    title: {
-                      display: true,
-                      text: "Users Gained between 2016-2020",
-                    },
-                    legend: {
-                      display: false,
-                    },
-                  },
-                }}
-              />
-            </div>
+            <p style={{ fontSize: "35px" }}>22</p>
+            <p style={{ fontSize: "13px" }}>EMAILS SENT</p>
           </div>
-        </Tab>
-        <Tab key="recipients" title="Recipients" />
-        <Tab key="opens" title="Opens" />
-        <Tab key="clicks" title="Clicks" />
-        <Tab key="bounces" title="Bounces" />
-        <Tab key="unsubscribes" title="Unsubscribes" />
-      </Tabs>
+          <Send2 size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+          onClick={() => setSelected("opens")}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>0%</p>
+            <p style={{ fontSize: "13px" }}>UNIQUE OPENS</p>
+          </div>
+          <MessageTick size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+          onClick={() => setSelected("clicks")}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "13px" }}>CLICK RATE</p>
+          </div>
+          <MouseSquare size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+          onClick={() => setSelected("bounces")}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "13px" }}>BOUNCE RATE</p>
+          </div>
+          <ArrowSwapHorizontal size="32" color="#adb5bd" />
+        </div>
+      </div>
+      <div
+        style={{
+          width: "100%",
+          backgroundColor: "white",
+          display: "flex",
+          flexDirection: "column",
+          padding: "10px 10px",
+          boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
+        }}
+      >
+        <br />
+        <div style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          padding: '20px 0px'
+          // paddingB
+        }}>
+          <p style={{ fontSize: '20px' }}>Unique Opens</p>
+          <p style={{ fontSize: '20px' }}>Unique Opens</p>
+        </div>
+        <br />
+        <br />
+        <hr />
+        <div style={{
+          width: "70%",
+        }}>
+          <Line
+            data={chartData}
+            options={{
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: "Users Gained between 2016-2020",
+                },
+                legend: {
+                  display: false,
+                },
+              },
+            }}
+          />
+        </div>
+      </div>
+      <div style={{
+        paddingTop: '30px'
+      }}>
+        <p style={{ fontSize: '20px' }}>Top Clicked Links </p>
+        <CustomTable
+          headers={tableHeaders}
+          columns={columns}
+          data={users}
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          pages={pages}
+          setPages={setPages}
+          customBottomContent={<div></div>}
+          customTopContent={customTopContent}
+        // renderActionCell={actionCell}
+        />
+      </div>
     </div>
-
-    // <div style={{ display: "flex", flexDirection: "column" }}>
-    //   <div
-    //     style={{
-    //       display: "flex",
-    //       flexDirection: "column",
-    //       margin: "30px 30px",
-    //       padding: "30px 20px",
-    //       backgroundColor: "white",
-    //     }}
-    //   >
-    //     <p>Your campaign is queued and will be sent out soon</p>
-    //     <br />
-    //     <hr></hr>
-    //     <br />
-    //     <p>Your campaign is queued and will be sent out soon</p>
-    //   </div>
-    // </div>
   );
 }
 
- const Data = [
+const Recipients = () => {
+  const tableHeaders = ["name", "service", "actions"];
+
+  const columns = [
+    // { name: "ID", uid: "id" },
+    { name: "SUBSCRIBER", uid: "subscriber" },
+    { name: "SUBJECT", uid: "clicks" },
+    { name: "DELIVERED", uid: "clicks" },
+    { name: "OPENED", uid: "clicks" },
+    { name: "CLICKED", uid: "clicks" },
+    { name: "BOUNCED", uid: "email" },
+    { name: "COMPLAINED", uid: "complained" },
+  ];
+
+  const [page, setPage] = React.useState(1);
+  const [pages, setPages] = React.useState(10);
+  const [searchText, setSearchText] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  return (
+    <div style={{
+      // paddingTop: '30px',
+      width: '80vw'
+    }}>
+      <CustomTable
+        headers={tableHeaders}
+        columns={columns}
+        data={users}
+        page={page}
+        setPage={setPage}
+        rowsPerPage={rowsPerPage}
+        setRowsPerPage={setRowsPerPage}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        pages={pages}
+        setPages={setPages}
+      // customBottomContent={<div></div>}
+      // customTopContent={customTopContent}
+      // renderActionCell={actionCell}
+      />
+    </div>
+  );
+}
+
+const Opens = ({ setSelected }) => {
+
+  const tableHeaders = ["name", "service", "actions"];
+
+  const columns = [
+    // { name: "ID", uid: "id" },
+    { name: "SUBSCRIBER", uid: "subscriber" },
+    { name: "SUBJECT", uid: "clicks" },
+    { name: "OPENED", uid: "clicks" },
+    { name: "OPEN COUNT", uid: "clicks" },
+  ];
+
+  const [page, setPage] = React.useState(1);
+  const [pages, setPages] = React.useState(10);
+  const [searchText, setSearchText] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        margin: "0px 0px",
+        padding: "1px 15px",
+        backgroundColor: "",
+        width: '80vw'
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flex: "1 1 100%",
+          gap: "20px",
+        }}
+        className="row mb-4"
+      >
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>22</p>
+            <p style={{ fontSize: "13px" }}>UNIQUE OPENS</p>
+          </div>
+          <LuMailOpen size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+          onClick={() => setSelected("opens")}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>0%</p>
+            <p style={{ fontSize: "13px" }}>TOTAL OPENS</p>
+          </div>
+          <HiMailOpen size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "13px" }}>AVERAGE TIME TO OPEN</p>
+          </div>
+          <IoMdTime size="32" color="#adb5bd" />
+        </div>
+      </div>
+
+      <div style={{
+        paddingTop: '30px'
+      }}>
+        <CustomTable
+          headers={tableHeaders}
+          columns={columns}
+          data={[]}
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          pages={pages}
+          setPages={setPages}
+          // customBottomContent={<div></div>}
+          customTopContent={customTopContent}
+        // renderActionCell={actionCell}
+        />
+      </div>
+    </div>
+  );
+}
+const Clicks = ({ setSelected }) => {
+
+  const tableHeaders = ["name", "service", "actions"];
+
+  const columns = [
+    // { name: "ID", uid: "id" },
+    { name: "SUBSCRIBER", uid: "subscriber" },
+    { name: "SUBJECT", uid: "clicks" },
+    { name: "CLICKED", uid: "clicks" },
+    { name: "CLICK COUNT", uid: "clicks" },
+  ];
+
+  const [page, setPage] = React.useState(1);
+  const [pages, setPages] = React.useState(10);
+  const [searchText, setSearchText] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        margin: "0px 0px",
+        padding: "1px 15px",
+        backgroundColor: "",
+        width: '80vw'
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flex: "1 1 100%",
+          gap: "20px",
+        }}
+        className="row mb-4"
+      >
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>22</p>
+            <p style={{ fontSize: "13px" }}>UNIQUE CLICKS</p>
+          </div>
+          <PiHandTap size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>0%</p>
+            <p style={{ fontSize: "13px" }}>TOTAL CLICKS</p>
+          </div>
+          <PiHandTapFill size="32" color="#adb5bd" />
+        </div>
+        <div
+          style={{
+            backgroundColor: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            height: "130px",
+            padding: "0px 20px",
+            flex: 1,
+            minWidth: "300px",
+            borderRadius: "4px",
+            borderBottomWidth: "4px",
+            borderColor: "#b1b9ff",
+            cursor: "pointer",
+          }}
+
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "13px" }}>AVERAGE TIME TO CLICK</p>
+          </div>
+          <IoMdTime size="32" color="#adb5bd" />
+        </div>
+      </div>
+
+      <div style={{
+        paddingTop: '30px'
+      }}>
+        <CustomTable
+          headers={tableHeaders}
+          columns={columns}
+          data={[]}
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          pages={pages}
+          setPages={setPages}
+          // customBottomContent={<div></div>}
+          customTopContent={customTopContent}
+        // renderActionCell={actionCell}
+        />
+      </div>
+    </div>
+  );
+}
+const Bounces = ({ setSelected }) => {
+
+  const tableHeaders = ["name", "service", "actions"];
+
+  const columns = [
+    // { name: "ID", uid: "id" },
+    { name: "SUBSCRIBER", uid: "subscriber" },
+    { name: "SUBJECT", uid: "clicks" },
+    { name: "BOUNCED", uid: "clicks" },
+  ];
+
+  const [page, setPage] = React.useState(1);
+  const [pages, setPages] = React.useState(10);
+  const [searchText, setSearchText] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        margin: "0px 0px",
+        padding: "1px 15px",
+        backgroundColor: "",
+        width: '80vw'
+      }}
+    >
+
+      <div style={{
+      }}>
+        <CustomTable
+          headers={tableHeaders}
+          columns={columns}
+          data={[]}
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          pages={pages}
+          setPages={setPages}
+          // customBottomContent={<div></div>}
+          customTopContent={customTopContent}
+        // renderActionCell={actionCell}
+        />
+      </div>
+    </div>
+  );
+}
+const Unsubscribes = ({ setSelected }) => {
+
+  const tableHeaders = ["name", "service", "actions"];
+
+  const columns = [
+    // { name: "ID", uid: "id" },
+    { name: "SUBSCRIBER", uid: "subscriber" },
+    { name: "SUBJECT", uid: "clicks" },
+    { name: "UNSUBSCRIBED", uid: "clicks" },
+  ];
+
+  const [page, setPage] = React.useState(1);
+  const [pages, setPages] = React.useState(10);
+  const [searchText, setSearchText] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        margin: "0px 0px",
+        padding: "1px 15px",
+        backgroundColor: "",
+        width: '80vw'
+      }}
+    >
+
+      <div style={{
+      }}>
+        <CustomTable
+          headers={tableHeaders}
+          columns={columns}
+          data={[]}
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          pages={pages}
+          setPages={setPages}
+          // customBottomContent={<div></div>}
+          customTopContent={customTopContent}
+        // renderActionCell={actionCell}
+        />
+      </div>
+    </div>
+  );
+}
+
+const Data = [
   {
     id: 1,
     year: 2016,

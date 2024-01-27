@@ -8,6 +8,7 @@ import "md-editor-rt/lib/style.css";
 import dynamic from "next/dynamic";
 import "@uiw/react-markdown-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
+import "@/components/template-globals.css";
 
 import MarkdownEditor from "@uiw/react-markdown-editor";
 import { usePathname, useRouter } from "next/navigation";
@@ -109,6 +110,7 @@ export default function Home() {
           paddingRight: "10px",
           paddingTop: "20px",
           height: "100%",
+          fontSize: "30px",
         }}
       >
         {/* <Button
@@ -635,38 +637,7 @@ export default function Home() {
                     </div>
                   </Switch>
                 </div>
-                {sendTime == "send-later" && (
-                  <div
-                    style={{
-                      flex: 1,
-                      gap: "20px",
-                      paddingTop: "20px",
-                    }}
-                    className="flex md:flex-row flex-col"
-                  >
-                    <div>
-                      <p>Select Date</p>
-                      <DatePicker
-                        value={sendLaterDate}
-                        onChange={(newValue) => {
-                          console.log(newValue);
-                          setSendLaterDate(newValue);
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <p>Select Time</p>
-                      <TimePicker
-                        value={sendLaterTime}
-                        onChange={(newValue) => {
-                          console.log(newValue);
-                          setSendLaterTime(newValue);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
+                
                 <div
                   style={{
                     display: "flex",
@@ -774,7 +745,7 @@ export default function Home() {
                     <MarkdownEditor
                       value={mailContent}
                       onChange={(value, viewUpdate) => setMailContent(value)}
-                      width="100%"
+                      // width="100%"
                       height="100%"
                     />
                   </div>

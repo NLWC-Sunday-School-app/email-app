@@ -16,11 +16,13 @@ import { Suspense } from "react";
 import EasyEdit from "react-easy-edit";
 
 import "@/components/template-globals.css";
-import ReactQuill from "react-quill";
+// import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Switch } from "@nextui-org/react";
 
 const mdStr = ``;
+
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 
 const MarkdownEditor = dynamic(
   () => import("@uiw/react-markdown-editor").then((mod) => mod.default),
@@ -35,7 +37,7 @@ export default function Home() {
   const [text, setText] = useState("# Hello Editor");
   const [name, setName] = useState("Untitled Template");
   const [isPreview, setIsPreview] = useState(false);
-  const [isMarkup, setIsMarkup] = React.useState(true);
+  const [isMarkup, setIsMarkup] = React.useState(false);
 
   const router = useRouter();
 

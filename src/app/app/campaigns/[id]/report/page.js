@@ -87,7 +87,7 @@ const Body = ({ params }) => {
           name="123532render"
           style={{ width: "80vw", height: "80vh" }}
           sandbox="allow-scripts allow-same-origin"
-          srcDoc={data.content}
+          srcDoc={data?.content}
         />
       </div>
     </div>

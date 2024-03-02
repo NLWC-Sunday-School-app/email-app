@@ -74,7 +74,7 @@ export const AxiosProvider = ({ children }) => {
     const publicAxios = axios.create({
         // baseURL: 'https://8960-102-67-1-16.ngrok-free.app/api',
         // baseURL: 'http://127.0.0.1:8234/api',
-        baseURL: process.env.API_BASE_URL+'/api',
+        baseURL: process.env.NEXT_PUBLIC_API_BASE_URL+'/api',
     });
 
     publicAxios.interceptors.request.use(requestInterceptor, requestErrorHandler);

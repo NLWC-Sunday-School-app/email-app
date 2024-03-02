@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Inter, Montserrat, Nunito } from "next/font/google";
 // import "./globals.css";
+import "@/components/nprogress.css";
 import { AuthContextProvider } from "../context/AuthContext";
-import { Providers } from "./providers";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer, toast } from "react-toastify";
+import { AxiosProvider } from "@/context/AxiosContext";
 
 // const inter = Montserrat({ subsets: ["latin"] });
 const inter = Nunito({ subsets: ["latin"] });
@@ -23,9 +24,16 @@ export default function RootLayout({
     // <Providers>
     // <LocalizationProvider dateAdapter={AdapterDayjs}>
     <AuthContextProvider>
-      <html lang="en">
-        <body className={inter.className}>{children}</body>
-      </html>
+      <AxiosProvider>
+        {/* <SWRConfig> */}
+          <html lang="en">
+            <body className={inter.className}>
+              <ToastContainer />
+              {children}
+            </body>
+          </html>
+        {/* </SWRConfig> */}
+      </AxiosProvider>
     </AuthContextProvider>
     // </LocalizationProvider>
     // </Providers>

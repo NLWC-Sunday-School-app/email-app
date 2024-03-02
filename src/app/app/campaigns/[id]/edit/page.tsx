@@ -3,12 +3,12 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import CustomTable from "@/components/table";
 import React, { useState } from "react";
-import "md-editor-rt/lib/style.css";
-import dynamic from "next/dynamic";
-import "@uiw/react-markdown-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
+// import "md-editor-rt/lib/style.css";
+// import dynamic from "next/dynamic";
+// import "@uiw/react-markdown-editor/markdown-editor.css";
+// import "@uiw/react-markdown-preview/markdown.css";
 
-import MarkdownEditor from "@uiw/react-markdown-editor";
+// import MarkdownEditor from "@uiw/react-markdown-editor";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Checkbox, Input, Select, SelectItem } from "@nextui-org/react";
 import { useInfiniteScroll } from "@nextui-org/use-infinite-scroll";
@@ -45,6 +45,9 @@ export default function Home() {
   }, [selectedTemplate]);
 
   const [isOpen, setIsOpen] = React.useState(false);
+  // const { items, hasMore, isLoading, onLoadMore } = useListTemplates({
+  //   fetchDelay: 1500,
+  // });
   const { items, hasMore, isLoading, onLoadMore } = useTemplatesList({
     fetchDelay: 1500,
   });
@@ -291,12 +294,7 @@ export default function Home() {
           >
             Content
           </label>
-          <MarkdownEditor
-            value={mailContent}
-            onChange={(value, viewUpdate) => setMailContent(value)}
-            width="100%"
-            height="100%"
-          />
+         
         </div>
         <div
           style={{

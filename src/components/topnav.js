@@ -1,15 +1,38 @@
 "use client"
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react'
 import { TiArrowSortedDown } from "react-icons/ti";
 import { RxAvatar } from "react-icons/rx";
 import { FiLogOut } from "react-icons/fi";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button } from "@nextui-org/react";
 import Link from 'next/link';
+import nProgress from 'nprogress';
+import { useRouter } from 'next/navigation';
+import { Router } from 'next/router';
+// import NextProgress from "next-progress";
 
 export default function TopNav() {
     const pathname = usePathname();
     const [name, setName] = useState('');
+
+    const router = useRouter();
+
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        const url = `${pathname}?${searchParams}`
+        // console.log(url)
+        // console.log(Router.events)
+        // You can now use the current URL
+        // ...
+    }, [pathname, searchParams])
+
+
+    // nProgress.start();
+    // nProgress.set(0.5);
+    // setTimeout(() => {
+    //     nProgress.done()
+    // }, 5000)
     const isMatchingPathname = (pathname) => {
         const regex = /^\/app\/campaigns\/\d+\/status$/;
         return regex.test(pathname);
@@ -48,6 +71,9 @@ export default function TopNav() {
         if (pathname.startsWith("/app/templates")) {
             setName("Templates")
         }
+        if (pathname.startsWith("/app/campaigns")) {
+            setName("Campaigns")
+        }
         if (pathname == "/app/email-services") {
             setName("Email Services")
         }
@@ -62,6 +88,8 @@ export default function TopNav() {
         }
 
     }, [pathname])
+
+    // <NextProgress />
     return (
         <div style={{
             width: "100%", display: 'flex', justifyContent: 'space-between', backgroundColor: "#fff",

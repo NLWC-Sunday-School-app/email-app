@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useAuth } from "../../../context/AuthContext";
 import CustomTable from "../../../components/table";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Add } from "iconsax-react";
 
 import { columns, users, statusOptions } from "../../../components/data";
@@ -24,19 +24,24 @@ import {
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { useRouter } from "next/navigation";
+import {
+  useFetchUsers,
+  useFetchSingleUser,
+  useCreateSingleUser,
+} from "@/services/UserManagementServices";
+import { useAxios } from "@/context/AxiosContext";
 
 export default function Home() {
-  const { loggedinUser }: any = useAuth();
-  // console.log(loggedinUser);
-  const raw = 3;
   const router = useRouter();
 
   const [isOpenDelete, setIsOpenDelete] = useState(false);
   const [isOpenAdd, setIsOpenAdd] = useState(false);
   const [isOpenEdit, setIsOpenEdit] = useState(false);
-  const [isOpenTest, setIsOpenTest] = useState(false);
+  const [editUser, setEditUser] = useState({});
+  const [deleteUser, setDeleteUser] = useState("");
+  const [refreshData, setrefreshData] = useState(false);
 
-  const actionCell = (onOpen, item) => {
+  const actionCell = (user) => {
     return (
       <div className="relative flex justify-start items-center gap-2">
         <Dropdown className="bg-background border-1 border-default-200">
@@ -46,10 +51,20 @@ export default function Home() {
             </Button>
           </DropdownTrigger>
           <DropdownMenu aria-label="Static Actions">
-            <DropdownItem onClick={() => setIsOpenEdit(true)}>
+            <DropdownItem
+              onClick={() => {
+                setIsOpenEdit(true);
+                setEditUser(user);
+              }}
+            >
               Edit
             </DropdownItem>
-            <DropdownItem onClick={() => setIsOpenDelete(true)}>
+            <DropdownItem
+              onClick={() => {
+                setIsOpenDelete(true);
+                setDeleteUser(user);
+              }}
+            >
               Delete
             </DropdownItem>
           </DropdownMenu>
@@ -72,7 +87,34 @@ export default function Home() {
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { user, mutate } = useFetchUsers({
+    search: searchText,
+    page_size: rowsPerPage,
+    page: page,
+  });
+
+  useEffect(() => {
+    if (user) {
+      const formattedUser = user?.data?.map((data) => ({
+        ...data,
+        created_at: new Date(data.created_at).toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }));
+
+      setTableData(formattedUser);
+      setPages(user?.last_page);
+    }
+  }, [user, refreshData]);
+  useEffect(() => {
+    mutate();
+  }, [refreshData]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -107,7 +149,7 @@ export default function Home() {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={users}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -119,20 +161,36 @@ export default function Home() {
           renderActionCell={actionCell}
         />
       </div>
-      <DeleteModal isOpen={isOpenDelete} setIsOpen={setIsOpenDelete} />
-      <AddNewModal isOpen={isOpenAdd} setIsOpen={setIsOpenAdd} />
-      <EditModal isOpen={isOpenEdit} setIsOpen={setIsOpenEdit} />
+      <DeleteModal
+        isOpen={isOpenDelete}
+        setIsOpen={setIsOpenDelete}
+        user={deleteUser}
+        setrefreshData={setrefreshData}
+      />
+      <AddNewModal
+        isOpen={isOpenAdd}
+        setIsOpen={setIsOpenAdd}
+        setrefreshData={setrefreshData}
+      />
+      <EditModal
+        isOpen={isOpenEdit}
+        setIsOpen={setIsOpenEdit}
+        user={editUser}
+        setrefreshData={setrefreshData}
+      />
     </div>
   );
 }
 
-function AddNewModal({ isOpen, setIsOpen }) {
+function AddNewModal({ isOpen, setIsOpen, setrefreshData }) {
+  setrefreshData(false);
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const { publicAxios }: any = useAxios();
 
   const isEmailInvalid = React.useMemo(() => {
     if (!email) return false;
@@ -144,12 +202,20 @@ function AddNewModal({ isOpen, setIsOpen }) {
     return false;
   }, [firstName, lastName, email]);
 
-  const submitModal = () => {
+  const submitModal = async () => {
+    const { data, error } = await publicAxios.post(`/user/user/add`, {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+    });
+    // console.log(data);
+
     console.log("submitModal");
     setEmail("");
     setFirstName("");
     setLastName("");
     setIsOpen(false);
+    setrefreshData(true);
   };
   return (
     <Modal
@@ -266,13 +332,23 @@ function AddNewModal({ isOpen, setIsOpen }) {
   );
 }
 
-function EditModal({ isOpen, setIsOpen }) {
+function EditModal({ isOpen, setIsOpen, user, setrefreshData }) {
+  setrefreshData(false);
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const { publicAxios }: any = useAxios();
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user?.first_name);
+      setLastName(user?.last_name);
+      setEmail(user?.email);
+    }
+  }, [user]);
 
   const isEmailInvalid = React.useMemo(() => {
     if (!email) return false;
@@ -284,12 +360,20 @@ function EditModal({ isOpen, setIsOpen }) {
     return false;
   }, [firstName, lastName, email]);
 
-  const submitModal = () => {
-    console.log("submitModal");
+  const submitModal = async () => {
+    const data = await publicAxios.post(`/user/user/${user.uuid}/edit`, {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+    });
+    if (data) {
+    }
+    // console.log("submitModal");
     setEmail("");
     setFirstName("");
     setLastName("");
     setIsOpen(false);
+    setrefreshData(true);
   };
   return (
     <Modal
@@ -406,10 +490,12 @@ function EditModal({ isOpen, setIsOpen }) {
   );
 }
 
-function DeleteModal({ isOpen, setIsOpen }) {
+function DeleteModal({ isOpen, setIsOpen, user, setrefreshData }) {
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const { publicAxios }: any = useAxios();
+  setrefreshData(false);
 
   return (
     <Modal
@@ -425,7 +511,7 @@ function DeleteModal({ isOpen, setIsOpen }) {
         {(onClose) => (
           <div>
             <ModalHeader className="flex flex-col gap-1">
-              Confirm Delete: Test
+              Confirm Delete
             </ModalHeader>
             <ModalBody>
               <div
@@ -451,9 +537,9 @@ function DeleteModal({ isOpen, setIsOpen }) {
                     }}
                   >
                     {" "}
-                    Folakunmi Aremu{" "}
+                    {user.first_name} {user.last_name}{" "}
                   </span>
-                  campaign?
+                  ?
                 </p>
               </div>
             </ModalBody>
@@ -465,7 +551,17 @@ function DeleteModal({ isOpen, setIsOpen }) {
               >
                 Close
               </Button>
-              <Button color="danger" onPress={() => setIsOpen(false)}>
+              <Button
+                color="danger"
+                onPress={async () => {
+                  const data = await publicAxios.delete(
+                    `/user/user/${user.uuid}/delete`
+                  );
+                  console.log(data);
+                  setIsOpen(false);
+                  setrefreshData(true);
+                }}
+              >
                 Delete
               </Button>
             </ModalFooter>

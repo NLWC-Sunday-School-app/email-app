@@ -29,7 +29,6 @@ export default function Home() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   const { loggedinUser } = useAuth();
-  console.log(loggedinUser);
 
   Chart.register(CategoryScale);
 
@@ -66,7 +65,7 @@ export default function Home() {
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
 
   const completedCampaignColumns = [

@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useAuth } from "../../../context/AuthContext";
 import CustomTable from "../../../components/table";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Add } from "iconsax-react";
 
 import { columns, users, statusOptions } from "../../../components/data";
@@ -15,10 +15,9 @@ import {
 import { Button, useDisclosure } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { useRouter } from "next/navigation";
+import { useFetchMessages } from "@/services/MessagesServices";
 
 export default function Home() {
-  const { loggedinUser }: any = useAuth();
-  console.log(loggedinUser);
   const raw = 3;
   const router = useRouter();
 
@@ -54,13 +53,14 @@ export default function Home() {
     { name: "SUBJECT", uid: "subject" },
     {
       name: "CAMPAIGN",
-      uid: "campaign",
-      link: "app/users/{user.name}",
-      linkKey: "user.name",
+      uid: "campaign.name",
+      link: "campaigns/{campaign.uuid}/report",
+      // link: "app/users/{user.name}",
+      linkKey: "campaign.uuid",
     },
     {
       name: "SUBSCRIBER",
-      uid: "subscriber",
+      uid: "recipient_email",
       link: "app/users/{user.name}",
       linkKey: "user.name",
     },
@@ -71,7 +71,32 @@ export default function Home() {
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  const [tableData, setTableData] = useState([]);
+
+  const { user, isLoading, error, mutate } = useFetchMessages({
+    search: searchText,
+    page_size: rowsPerPage,
+    page: page,
+  });
+  console.log(user, "data");
+
+  useEffect(() => {
+    if (user) {
+      const formattedUser = user?.data?.map((data) => ({
+        ...data,
+        created_at: new Date(data.created_at).toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }));
+      setTableData(formattedUser);
+      setPages(user?.meta?.last_page);
+    }
+  }, [user]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -105,7 +130,7 @@ export default function Home() {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={users}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -115,7 +140,7 @@ export default function Home() {
           pages={pages}
           setPages={setPages}
           renderActionCell={actionCell}
-          dataIsLink={["subscriber", "campaign"]}
+          dataIsLink={["campaign.name"]}
         />
       </div>
     </div>

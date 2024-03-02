@@ -1,10 +1,9 @@
 "use client";
 import Image from "next/image";
 import CustomTable from "../../../components/table";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import { columns, users, statusOptions } from "../../../components/data";
-import MarkdownEditor from "@uiw/react-markdown-editor";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -26,13 +25,15 @@ import {
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { IoMdAdd } from "react-icons/io";
+import { useListAllTemplates } from "@/services/TemplateServices";
+import { useAxios } from "@/context/AxiosContext";
 
 export default function Home() {
-  const pathname = usePathname();
   const router = useRouter();
   const mdStr = `# This is a H1  \n## This is a H2  \n###### This is a H6`;
 
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [refreshData, setRefreshData] = useState(false);
 
   const tableHeaders = ["name", "created_at", "status", "actions"];
 
@@ -40,16 +41,39 @@ export default function Home() {
     // { name: "ID", uid: "id" },
     { name: "NAME", uid: "name" },
     { name: "DATE CREATED", uid: "created_at" },
-    { name: "STATUS", uid: "status" },
     { name: "", uid: "actions" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, settableData] = React.useState([]);
+  const [deleteTemplate, setDeleteTemplate] = React.useState({});
 
-  const ActionCell = (id) => {
+  const { user, mutate } = useListAllTemplates({
+    page,
+    page_size: rowsPerPage,
+    search: searchText,
+  });
+
+  useEffect(() => {
+    if (user) {
+      const formattedUser = user?.data?.map((data) => ({
+        ...data,
+        created_at: new Date(data.created_at).toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }));
+      settableData(formattedUser);
+      setPages(user?.meta?.last_page);
+    }
+  }, [user]);
+
+  const actionCell = (list) => {
     return (
       <div className="relative flex justify-start items-center gap-2">
         <Dropdown className="bg-background border-1 border-default-200">
@@ -61,12 +85,19 @@ export default function Home() {
           <DropdownMenu aria-label="Static Actions">
             <DropdownItem
               onClick={() => {
-                router.push("/app/templates/1/edit");
+                router.push(`/app/templates/${list.uuid}/edit`);
               }}
             >
               Edit
             </DropdownItem>
-            <DropdownItem onClick={onOpen}>Delete</DropdownItem>
+            <DropdownItem
+              onClick={() => {
+                setDeleteTemplate(list);
+                onOpen();
+              }}
+            >
+              Delete
+            </DropdownItem>
           </DropdownMenu>
         </Dropdown>
       </div>
@@ -74,7 +105,7 @@ export default function Home() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
       <div
         style={{
           display: "flex",
@@ -98,131 +129,84 @@ export default function Home() {
           }}
           onClick={() => router.push("/app/templates/create")}
         >
-          <IoMdAdd size={15}/>
+          <IoMdAdd size={15} />
+          New Template
+        </button>
+      </div>
+      <div>
+        <CustomTable
+          headers={tableHeaders}
+          columns={columns}
+          data={tableData}
+          page={page}
+          setPage={setPage}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          pages={pages}
+          setPages={setPages}
+          renderActionCell={actionCell}
+        />
+      </div>
+      {/* <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          paddingTop: "20px",
+        }}
+      >
+        <button
+          style={{
+            backgroundColor: "#5d63ff",
+            borderRadius: "5px",
+            flexDirection: "row",
+            display: "flex",
+            justifyContent: "center",
+            color: "white",
+            fontSize: "12px",
+            alignItems: "center",
+            gap: "3px",
+            padding: "10px 15px",
+          }}
+          onClick={() => router.push("/app/templates/create")}
+        >
+          <IoMdAdd size={15} />
           New Template
         </button>
       </div>
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flex: "1 1 100%",
-          gap: "20px",
-          margin: "15px 20px",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          paddingTop: "20px",
+          width: "100%",
         }}
-        className="row mb-4"
-      >
-        <div
-          style={{
-            minWidth: "500px",
-            backgroundColor: "white",
-            height: "600px",
-            padding: "15px 20px",
-            boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <p style={{ fontWeight: "500", fontSize: "24px" }}>Template 1</p>
-            <ActionCell />
-          </div>
-          <br />
-          <hr />
-          <br />
-          <div
-            style={{
-              borderWidth: "1px",
-              height: "83%",
-            }}
-          >
-            <iframe
-              id="123532"
-              name="123532render"
-              style={{
-                height: "100%",
-                width: "100%",
-                backgroundColor: "white",
-                // boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
-              }}
-              sandbox="allow-scripts allow-same-origin"
-              srcDoc={mdStr}
-            />
-          </div>
-        </div>
-      </div>
-      <DeleteModal
-        isOpen={isOpen}
-        onOpen={onOpen}
-        onOpenChange={onOpenChange}
-      />
+      ></div> */}
+
+      {isOpen && (
+        <DeleteModal
+          isOpen={isOpen}
+          onOpen={onOpen}
+          onOpenChange={onOpenChange}
+          deleteTemplate={deleteTemplate}
+          setRefreshData={mutate}
+        />
+      )}
     </div>
   );
 }
 
-function DeleteModal({ isOpen, onOpen, onOpenChange }) {
-  const validateEmail = (value) =>
-    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
-
-  const [toEmail, setToEmail] = React.useState("");
-  // const [isToEmailInvalid, setIsToEmailInvalid] = React.useState(false);
-
-  const [fromEmail, setFromEmail] = React.useState("");
-  // const [isFromEmailInvalid, setIsFromEmailInvalid] = React.useState(false);
-
-  const [subject, setSubject] = React.useState("");
-  // const [isSubjectInvalid, setIsSubjectInvalid] = React.useState(false);
-
-  const [description, setDescription] = React.useState("");
-  // const [isDescriptionInvalid, setIsDescriptionInvalid] = React.useState("");
-
-  const isToEmailInvalid = React.useMemo(() => {
-    if (toEmail === "") return false;
-
-    return validateEmail(toEmail) ? false : true;
-  }, [toEmail]);
-
-  const isFromEmailInvalid = React.useMemo(() => {
-    if (fromEmail === "") return false;
-
-    return validateEmail(fromEmail) ? false : true;
-  }, [fromEmail]);
-
-  const isSubjectInvalid = React.useMemo(() => {
-    console.log(subject);
-    if (!subject) return false;
-    return false;
-  }, [subject]);
-
-  const isDescriptionInvalid = React.useMemo(() => {
-    if (description === "") return false;
-    return false;
-  }, [description]);
-
-  const enableSubmit = React.useMemo(() => {
-    if (
-      description &&
-      subject &&
-      fromEmail &&
-      toEmail &&
-      !isToEmailInvalid &&
-      !isFromEmailInvalid
-    )
-      return true;
-    return false;
-  }, [description, subject, fromEmail, toEmail]);
-
-  const submitModal = ({ onClose }) => {
-    console.log("submitModal");
-    console.log(enableSubmit);
-    onClose();
-  };
+function DeleteModal({
+  isOpen,
+  onOpen,
+  onOpenChange,
+  deleteTemplate,
+  setRefreshData,
+}) {
+  const { publicAxios }: any = useAxios();
   return (
     <Modal
       isOpen={isOpen}
@@ -234,7 +218,7 @@ function DeleteModal({ isOpen, onOpen, onOpenChange }) {
         {(onClose) => (
           <div>
             <ModalHeader className="flex flex-col gap-1">
-              Confirm Delete: Test
+              Confirm Delete: {deleteTemplate?.name}
             </ModalHeader>
             <ModalBody>
               <div
@@ -251,18 +235,7 @@ function DeleteModal({ isOpen, onOpen, onOpenChange }) {
                     color: "#555",
                   }}
                 >
-                  Are you sure that you want to delete the
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      color: "#555",
-                    }}
-                  >
-                    {" "}
-                    Folakunmi Aremu{" "}
-                  </span>
-                  campaign?
+                  Are you sure that you want to delete this template?
                 </p>
               </div>
             </ModalBody>
@@ -270,7 +243,17 @@ function DeleteModal({ isOpen, onOpen, onOpenChange }) {
               <Button color="default" variant="flat" onPress={onClose}>
                 Close
               </Button>
-              <Button color="danger" onPress={() => alert("Delete")}>
+              <Button
+                color="danger"
+                onPress={async () => {
+                  await publicAxios.delete(
+                    `/user/template/${deleteTemplate?.uuid}/delete`
+                  );
+                  alert("Delete");
+                  onClose();
+                  setRefreshData();
+                }}
+              >
                 Test
               </Button>
             </ModalFooter>

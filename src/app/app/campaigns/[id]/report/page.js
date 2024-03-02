@@ -21,13 +21,12 @@ import { LuMailOpen } from "react-icons/lu";
 import { HiMailOpen } from "react-icons/hi";
 import { PiHandTapFill } from "react-icons/pi";
 import { IoMdTime } from "react-icons/io";
+import { useAxios } from "@/context/AxiosContext";
+import { useGetCampaignReport, useViewOneCampaign } from "@/services/CampaignServices";
 
-export default function Home() {
+export default function Home({ params }) {
 
-
-  const { loggedinUser } = useAuth();
-  console.log(loggedinUser);
-  const [selected, setSelected] = React.useState("unsubscribes");
+  const [selected, setSelected] = React.useState("overview");
 
   const pathname = usePathname();
 
@@ -43,23 +42,27 @@ export default function Home() {
         onSelectionChange={setSelected}
 
       >
+
         <Tab key="overview" title="Overview" style={{ height: '90%' }}>
-          <Overview setSelected={setSelected} />
+          <Overview setSelected={setSelected} params={params} />
+        </Tab>
+        <Tab key="body" title="Body" style={{ height: '90%' }}>
+          <Body params={params} />
         </Tab>
         <Tab key="recipients" title="Recipients" style={{ width: '100%' }} >
-          <Recipients setSelected={setSelected} />
+          <Recipients setSelected={setSelected} params={params} />
         </Tab>
         <Tab key="opens" title="Opens" >
-          <Opens setSelected={setSelected} />
+          <Opens setSelected={setSelected} params={params} />
         </Tab>
         <Tab key="clicks" title="Clicks" >
-          <Clicks setSelected={setSelected} />
+          <Clicks setSelected={setSelected} params={params} />
         </Tab>
         <Tab key="bounces" title="Bounces" >
-          <Bounces setSelected={setSelected} />
+          <Bounces setSelected={setSelected} params={params} />
         </Tab>
         <Tab key="unsubscribes" title="Unsubscribes" >
-          <Unsubscribes setSelected={setSelected} />
+          <Unsubscribes setSelected={setSelected} params={params} />
         </Tab>
       </Tabs>
     </div>
@@ -74,7 +77,24 @@ function customTopContent() {
   )
 }
 
-const Overview = ({ setSelected }) => {
+const Body = ({ params }) => {
+  const { data, isError } = useViewOneCampaign({ uuid: params.id });
+  return (
+    <div>
+      <div className="bg-white">
+        <iframe
+          id="123532"
+          name="123532render"
+          style={{ width: "80vw", height: "80vh" }}
+          sandbox="allow-scripts allow-same-origin"
+          srcDoc={data.content}
+        />
+      </div>
+    </div>
+  )
+}
+
+const Overview = ({ setSelected, params }) => {
   Chart.register(CategoryScale);
 
   const [chartData, setChartData] = useState({
@@ -103,14 +123,27 @@ const Overview = ({ setSelected }) => {
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "URL", uid: "url" },
-    { name: "CLICK COUNT", uid: "clicks" },
+    { name: "URL", uid: "link" },
+    { name: "CLICK COUNT", uid: "click_count" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { data } = useGetCampaignReport({
+    uuid: params.id,
+    type: 'overview'
+  });
+  // console.log(data?.campaignStats)
+
+  useEffect(() => {
+    if (data) {
+      setTableData(data?.campaignUrls);
+    }
+  }, [data]);
   return (
     <div
       style={{
@@ -158,7 +191,7 @@ const Overview = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22</p>
+            <p style={{ fontSize: "35px" }}>{data?.campaignStats ? data?.campaignStats?.counts['sent'] : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>EMAILS SENT</p>
           </div>
           <Send2 size="32" color="#adb5bd" />
@@ -188,7 +221,7 @@ const Overview = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>0%</p>
+            <p style={{ fontSize: "35px" }}>{data?.campaignStats?.ratios ? (data?.campaignStats?.ratios['open']) + '%' : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>UNIQUE OPENS</p>
           </div>
           <MessageTick size="32" color="#adb5bd" />
@@ -218,7 +251,7 @@ const Overview = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "35px" }}>{data?.campaignStats?.ratios ? (data?.campaignStats?.ratios['click']) + '%' : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>CLICK RATE</p>
           </div>
           <MouseSquare size="32" color="#adb5bd" />
@@ -248,57 +281,13 @@ const Overview = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "35px" }}>{data?.campaignStats?.ratios ? (data?.campaignStats?.ratios['bounce']) + '%' : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>BOUNCE RATE</p>
           </div>
           <ArrowSwapHorizontal size="32" color="#adb5bd" />
         </div>
       </div>
-      <div
-        style={{
-          width: "100%",
-          backgroundColor: "white",
-          display: "flex",
-          flexDirection: "column",
-          padding: "10px 10px",
-          boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
-        }}
-      >
-        <br />
-        <div style={{
-          width: "100%",
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          padding: '20px 0px'
-          // paddingB
-        }}>
-          <p style={{ fontSize: '20px' }}>Unique Opens</p>
-          <p style={{ fontSize: '20px' }}>Unique Opens</p>
-        </div>
-        <br />
-        <br />
-        <hr />
-        <div style={{
-          width: "70%",
-        }}>
-          <Line
-            data={chartData}
-            options={{
-              responsive: true,
-              plugins: {
-                title: {
-                  display: true,
-                  text: "Users Gained between 2016-2020",
-                },
-                legend: {
-                  display: false,
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
+
       <div style={{
         paddingTop: '30px'
       }}>
@@ -306,7 +295,7 @@ const Overview = ({ setSelected }) => {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={users}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -316,7 +305,7 @@ const Overview = ({ setSelected }) => {
           pages={pages}
           setPages={setPages}
           customBottomContent={<div></div>}
-          customTopContent={customTopContent}
+          CustomTopContent={customTopContent}
         // renderActionCell={actionCell}
         />
       </div>
@@ -324,24 +313,42 @@ const Overview = ({ setSelected }) => {
   );
 }
 
-const Recipients = () => {
+const Recipients = ({ setSelected, params }) => {
   const tableHeaders = ["name", "service", "actions"];
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "SUBSCRIBER", uid: "subscriber" },
-    { name: "SUBJECT", uid: "clicks" },
-    { name: "DELIVERED", uid: "clicks" },
-    { name: "OPENED", uid: "clicks" },
-    { name: "CLICKED", uid: "clicks" },
-    { name: "BOUNCED", uid: "email" },
-    { name: "COMPLAINED", uid: "complained" },
+    { name: "SUBSCRIBER", uid: "recipient_email" },
+    { name: "SUBJECT", uid: "subject" },
+    { name: "DELIVERED", uid: "delivered_at" },
+    { name: "OPENED", uid: "opened_at" },
+    { name: "CLICKED", uid: "clicked_at" },
+    { name: "BOUNCED", uid: "bounced_at" },
+    { name: "COMPLAINED", uid: "complained_at" },
+    { name: "", uid: "status" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { data } = useGetCampaignReport({
+    uuid: params.id,
+    type: 'recipients',
+    search: searchText,
+    page_size: rowsPerPage,
+    page,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setTableData(data?.data);
+      setPages(data?.meta?.last_page);
+    }
+  }, [data]);
+
   return (
     <div style={{
       // paddingTop: '30px',
@@ -350,7 +357,7 @@ const Recipients = () => {
       <CustomTable
         headers={tableHeaders}
         columns={columns}
-        data={users}
+        data={tableData}
         page={page}
         setPage={setPage}
         rowsPerPage={rowsPerPage}
@@ -367,22 +374,38 @@ const Recipients = () => {
   );
 }
 
-const Opens = ({ setSelected }) => {
-
+const Opens = ({ setSelected, params }) => {
+  console.log('opens');
   const tableHeaders = ["name", "service", "actions"];
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "SUBSCRIBER", uid: "subscriber" },
-    { name: "SUBJECT", uid: "clicks" },
-    { name: "OPENED", uid: "clicks" },
-    { name: "OPEN COUNT", uid: "clicks" },
+    { name: "SUBSCRIBER", uid: "recipient_email" },
+    { name: "SUBJECT", uid: "subject" },
+    { name: "OPENED", uid: "opened_at" },
+    { name: "OPEN COUNT", uid: "open_count" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { data } = useGetCampaignReport({
+    uuid: params.id,
+    type: 'opens',
+    search: searchText,
+    page_size: rowsPerPage,
+    page,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setTableData(data?.messages?.data);
+      setPages(data?.messages?.meta?.last_page);
+    }
+  }, [data]);
   return (
     <div
       style={{
@@ -429,7 +452,7 @@ const Opens = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22</p>
+            <p style={{ fontSize: "35px" }}>{data?.openStats?.unique_open_count ? data?.openStats?.unique_open_count : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>UNIQUE OPENS</p>
           </div>
           <LuMailOpen size="32" color="#adb5bd" />
@@ -459,7 +482,7 @@ const Opens = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>0%</p>
+            <p style={{ fontSize: "35px" }}>{data?.openStats?.total_open_count ? data?.openStats?.total_open_count : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>TOTAL OPENS</p>
           </div>
           <HiMailOpen size="32" color="#adb5bd" />
@@ -489,7 +512,7 @@ const Opens = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "35px" }}>N/A</p>
             <p style={{ fontSize: "13px" }}>AVERAGE TIME TO OPEN</p>
           </div>
           <IoMdTime size="32" color="#adb5bd" />
@@ -502,7 +525,7 @@ const Opens = ({ setSelected }) => {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={[]}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -512,29 +535,45 @@ const Opens = ({ setSelected }) => {
           pages={pages}
           setPages={setPages}
           // customBottomContent={<div></div>}
-          customTopContent={customTopContent}
+          CustomTopContent={customTopContent}
         // renderActionCell={actionCell}
         />
       </div>
     </div>
   );
 }
-const Clicks = ({ setSelected }) => {
-
+const Clicks = ({ setSelected, params }) => {
   const tableHeaders = ["name", "service", "actions"];
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "SUBSCRIBER", uid: "subscriber" },
-    { name: "SUBJECT", uid: "clicks" },
-    { name: "CLICKED", uid: "clicks" },
-    { name: "CLICK COUNT", uid: "clicks" },
+    { name: "SUBSCRIBER", uid: "recipient_email" },
+    { name: "SUBJECT", uid: "subject" },
+    { name: "CLICKED", uid: "clicked_at" },
+    { name: "CLICK COUNT", uid: "click_count" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { data } = useGetCampaignReport({
+    uuid: params.id,
+    type: 'clicks',
+    search: searchText,
+    page_size: rowsPerPage,
+    page,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setTableData(data?.messages?.data);
+      setPages(data?.messages?.meta?.last_page);
+    }
+  }, [data]);
+
   return (
     <div
       style={{
@@ -581,7 +620,7 @@ const Clicks = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22</p>
+            <p style={{ fontSize: "35px" }}>{data?.clickStats?.unique_click_count ? data?.clickStats?.unique_click_count : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>UNIQUE CLICKS</p>
           </div>
           <PiHandTap size="32" color="#adb5bd" />
@@ -610,7 +649,7 @@ const Clicks = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>0%</p>
+            <p style={{ fontSize: "35px" }}>{data?.clickStats?.unique_click_count ? data?.clickStats?.unique_click_count : "N/A"}</p>
             <p style={{ fontSize: "13px" }}>TOTAL CLICKS</p>
           </div>
           <PiHandTapFill size="32" color="#adb5bd" />
@@ -640,7 +679,7 @@ const Clicks = ({ setSelected }) => {
               justifyContent: "center",
             }}
           >
-            <p style={{ fontSize: "35px" }}>22%</p>
+            <p style={{ fontSize: "35px" }}>N/A</p>
             <p style={{ fontSize: "13px" }}>AVERAGE TIME TO CLICK</p>
           </div>
           <IoMdTime size="32" color="#adb5bd" />
@@ -653,7 +692,7 @@ const Clicks = ({ setSelected }) => {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={[]}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -663,28 +702,45 @@ const Clicks = ({ setSelected }) => {
           pages={pages}
           setPages={setPages}
           // customBottomContent={<div></div>}
-          customTopContent={customTopContent}
+          CustomTopContent={customTopContent}
         // renderActionCell={actionCell}
         />
       </div>
     </div>
   );
 }
-const Bounces = ({ setSelected }) => {
-
+const Bounces = ({ setSelected, params }) => {
+  console.log('bounces');
   const tableHeaders = ["name", "service", "actions"];
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "SUBSCRIBER", uid: "subscriber" },
-    { name: "SUBJECT", uid: "clicks" },
-    { name: "BOUNCED", uid: "clicks" },
+    { name: "SUBSCRIBER", uid: "recipient_email" },
+    { name: "SUBJECT", uid: "subject" },
+    { name: "BOUNCED", uid: "bounced_at" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { data } = useGetCampaignReport({
+    uuid: params.id,
+    type: 'bounces',
+    search: searchText,
+    page_size: rowsPerPage,
+    page,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setTableData(data?.data);
+      setPages(data?.meta?.last_page);
+    }
+  }, [data]);
+
   return (
     <div
       style={{
@@ -702,7 +758,7 @@ const Bounces = ({ setSelected }) => {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={[]}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -712,15 +768,15 @@ const Bounces = ({ setSelected }) => {
           pages={pages}
           setPages={setPages}
           // customBottomContent={<div></div>}
-          customTopContent={customTopContent}
+          CustomTopContent={customTopContent}
         // renderActionCell={actionCell}
         />
       </div>
     </div>
   );
 }
-const Unsubscribes = ({ setSelected }) => {
-
+const Unsubscribes = ({ setSelected, params }) => {
+  console.log('unsubscribes');
   const tableHeaders = ["name", "service", "actions"];
 
   const columns = [
@@ -733,7 +789,24 @@ const Unsubscribes = ({ setSelected }) => {
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableData, setTableData] = React.useState([]);
+
+  const { data } = useGetCampaignReport({
+    uuid: params.id,
+    type: 'unsubscribed',
+    search: searchText,
+    page_size: rowsPerPage,
+    page,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setTableData(data?.data);
+      setPages(data?.meta?.last_page);
+    }
+  }, [data]);
+
   return (
     <div
       style={{
@@ -751,7 +824,7 @@ const Unsubscribes = ({ setSelected }) => {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={[]}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -760,8 +833,8 @@ const Unsubscribes = ({ setSelected }) => {
           setSearchText={setSearchText}
           pages={pages}
           setPages={setPages}
-          // customBottomContent={<div></div>}
-          customTopContent={customTopContent}
+        // customBottomContent={<div></div>}
+        // CustomTopContent={customTopContent}
         // renderActionCell={actionCell}
         />
       </div>
@@ -801,3 +874,49 @@ const Data = [
     userLost: 234,
   },
 ];
+
+
+// <div
+//   style={{
+//     width: "100%",
+//     backgroundColor: "white",
+//     display: "flex",
+//     flexDirection: "column",
+//     padding: "10px 10px",
+//     boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
+//   }}
+// >
+//   <br />
+//   <div style={{
+//     width: "100%",
+//     display: "flex",
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     padding: '20px 0px'
+//     // paddingB
+//   }}>
+//     <p style={{ fontSize: '20px' }}>Unique Opens</p>
+//   </div>
+//   <br />
+//   <br />
+//   <hr />
+//   <div style={{
+//     width: "70%",
+//   }}>
+//     <Line
+//       data={chartData}
+//       options={{
+//         responsive: true,
+//         plugins: {
+//           title: {
+//             display: true,
+//             text: "Users Gained between 2016-2020",
+//           },
+//           legend: {
+//             display: false,
+//           },
+//         },
+//       }}
+//     />
+//   </div>
+// </div>

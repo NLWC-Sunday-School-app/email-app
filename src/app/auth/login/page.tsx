@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
+import { useAxios } from "@/context/AxiosContext";
 import CustomTable from "@/components/table";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Add } from "iconsax-react";
 
 import { columns, users, statusOptions } from "@/components/data";
@@ -27,14 +28,34 @@ import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const { loggedinUser }: any = useAuth();
-  console.log(loggedinUser);
+  const { setLoggedinUser, accesstoken, setAccesstoken }: any = useAuth();
+  const { publicAxios }: any = useAxios();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  useEffect(() => {
+    localStorage.setItem("ACCESS_TOKEN", "");
+  }, []);
 
-  const clearContents = () => {
-    setEmail("");
-    setPassword("");
+  const clearContents = async () => {
+    const data = await publicAxios.post(
+      "/user/login",
+      {
+        email,
+        password,
+      },
+      {
+        headers: { Authorization: "" },
+      }
+    );
+    if (data) {
+      setEmail("");
+      setPassword("");
+      localStorage.setItem("ACCESS_TOKEN", data?.data?.access_token);
+      localStorage.setItem("loggedinUser", JSON.stringify(data?.data?.user));
+      setLoggedinUser(data?.data?.user);
+      setAccesstoken(data?.data?.access_token);
+      router.replace("/app/dashboard");
+    }
   };
 
   const [isOpen, setIsOpen] = React.useState(false);
@@ -159,7 +180,6 @@ export default function Home() {
             style={{ borderRadius: "5px" }}
             isDisabled={!enableSubmit}
             onPress={() => {
-              router.replace("/app/dashboard");
               clearContents();
             }}
           >

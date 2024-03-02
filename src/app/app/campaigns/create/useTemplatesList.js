@@ -1,3 +1,4 @@
+import { useAuth } from "@/context/AuthContext";
 import React from "react";
 export function useTemplatesList({ fetchDelay = 0 } = {}) {
     const [items, setItems] = React.useState([{ name: "New Template" }]);
@@ -5,6 +6,7 @@ export function useTemplatesList({ fetchDelay = 0 } = {}) {
     const [isLoading, setIsLoading] = React.useState(false);
     const [offset, setOffset] = React.useState(0);
     const limit = 10; // Number of items per page, adjust as necessary
+    const { accesstoken } = useAuth();
 
     const loadPokemon = async (currentOffset) => {
         const controller = new AbortController();
@@ -20,9 +22,10 @@ export function useTemplatesList({ fetchDelay = 0 } = {}) {
             }
 
             let res = await fetch(
-                `https://pokeapi.co/api/v2/pokemon?offset=${currentOffset}&limit=${limit}`,
+                `http://127.0.0.1:8234/api/template/list?offset=${currentOffset}&limit=${limit}`,
                 { signal },
             );
+            console.log(res)
 
             if (!res.ok) {
                 throw new Error("Network response was not ok");

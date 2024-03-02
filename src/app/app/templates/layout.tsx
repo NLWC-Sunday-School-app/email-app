@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sent Campaigns | Sender",
-  description: "Sent Campaigns in Sender",
+  title: "Templates | Epistle",
+  description: "Templates in Epistle",
 };
 
 export default function RootLayout({

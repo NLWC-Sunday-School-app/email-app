@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 
 import Logo from "../../public/logo-main.png";
-import Image from 'next/image';
+// import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { usePathname } from 'next/navigation';

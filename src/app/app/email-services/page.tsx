@@ -26,17 +26,22 @@ import {
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { IoMdAdd } from "react-icons/io";
+import {
+  useFetchSingleService,
+  useListEmailServices,
+} from "@/services/EmailServiceServices";
+import { useAxios } from "@/context/AxiosContext";
 
 export default function Home() {
   const { loggedinUser }: any = useAuth();
-  console.log(loggedinUser);
+  // console.log(loggedinUser);
 
   const [isOpenDelete, setIsOpenDelete] = useState(false);
   const [isOpenAdd, setIsOpenAdd] = useState(false);
   const [isOpenEdit, setIsOpenEdit] = useState(false);
   const [isOpenTest, setIsOpenTest] = useState(false);
 
-  const actionCell = (item) => {
+  const actionCell = (service) => {
     return (
       <div className="relative flex justify-start items-center gap-2">
         <Dropdown className="bg-background border-1 border-default-200">
@@ -46,13 +51,28 @@ export default function Home() {
             </Button>
           </DropdownTrigger>
           <DropdownMenu aria-label="Static Actions">
-            <DropdownItem onClick={() => setIsOpenTest(true)}>
+            <DropdownItem
+              onClick={() => {
+                setTestService(service);
+                setIsOpenTest(true);
+              }}
+            >
               Test
             </DropdownItem>
-            <DropdownItem onClick={() => setIsOpenEdit(true)}>
+            <DropdownItem
+              onClick={() => {
+                setEditService(service);
+                setIsOpenEdit(true);
+              }}
+            >
               Edit
             </DropdownItem>
-            <DropdownItem onClick={() => setIsOpenDelete(true)}>
+            <DropdownItem
+              onClick={() => {
+                setDeleteService(service);
+                setIsOpenDelete(true);
+              }}
+            >
               Delete
             </DropdownItem>
           </DropdownMenu>
@@ -66,14 +86,47 @@ export default function Home() {
   const columns = [
     // { name: "ID", uid: "id" },
     { name: "NAME", uid: "name" },
-    { name: "SERVICE", uid: "service" },
+    { name: "SERVICE", uid: "service_type.name" },
     { name: "ACTIONS", uid: "actions" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [tableDate, setTableDate] = React.useState([]);
+
+  const [editService, setEditService] = useState({});
+  const [deleteService, setDeleteService] = useState({});
+  const [testService, setTestService] = useState({});
+  const [refreshData, setrefreshData] = useState(false);
+
+  const { user, mutate } = useListEmailServices({
+    search: searchText,
+    page_size: rowsPerPage,
+    page: page,
+  });
+
+  useEffect(() => {
+    if (user) {
+      const formattedUser = user?.data?.map((data) => ({
+        ...data,
+        created_at: new Date(data.created_at).toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }));
+
+      setTableDate(formattedUser);
+      setPages(user?.last_page);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    mutate();
+  }, [refreshData]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -108,7 +161,7 @@ export default function Home() {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={users}
+          data={tableDate}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -120,20 +173,50 @@ export default function Home() {
           renderActionCell={actionCell}
         />
       </div>
-      <DeleteModal isOpen={isOpenDelete} setIsOpen={setIsOpenDelete} />
-      <AddNewModal isOpen={isOpenAdd} setIsOpen={setIsOpenAdd} />
-      <EditModal isOpen={isOpenEdit} setIsOpen={setIsOpenEdit} />
-      <TestServiceModal isOpen={isOpenTest} setIsOpen={setIsOpenTest} />
+      {isOpenDelete && (
+        <DeleteModal
+          isOpen={isOpenDelete}
+          setIsOpen={setIsOpenDelete}
+          service={deleteService}
+          setrefreshData={setrefreshData}
+        />
+      )}
+
+      {isOpenAdd && (
+        <AddNewModal
+          isOpen={isOpenAdd}
+          setIsOpen={setIsOpenAdd}
+          setrefreshData={setrefreshData}
+        />
+      )}
+
+      {isOpenEdit && (
+        <EditModal
+          isOpen={isOpenEdit}
+          setIsOpen={setIsOpenEdit}
+          service={editService}
+          setrefreshData={setrefreshData}
+        />
+      )}
+      {isOpenTest && (
+        <TestServiceModal
+          isOpen={isOpenTest}
+          setIsOpen={setIsOpenTest}
+          service={testService}
+          setrefreshData={setrefreshData}
+        />
+      )}
     </div>
   );
 }
 
- function AddNewModal({ isOpen, setIsOpen }) {
+function AddNewModal({ isOpen, setIsOpen, setrefreshData }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
+  setrefreshData(false);
   const [name, setName] = React.useState("");
-  const [emailService, setEmailService] = React.useState("mailgun");
+  const [emailService, setEmailService] = React.useState("1");
   const [smtpHost, setSmtpHost] = React.useState("");
   const [smtpPort, setSmtpPort] = React.useState("");
   const [encryption, setEncryption] = React.useState("");
@@ -147,6 +230,7 @@ export default function Home() {
   const [secretAccessKey, setSecretAccessKey] = React.useState("");
   const [region, setRegion] = React.useState("");
   const [configSetName, setConfigSetName] = React.useState("");
+  const { publicAxios }: any = useAxios();
 
   const isNameInvalid = React.useMemo(() => {
     if (name === "") return false;
@@ -159,19 +243,19 @@ export default function Home() {
   // }, [userName]);
 
   const enableSubmit = React.useMemo(() => {
-    if (emailService === "smtp") {
+    if (emailService === "4") {
       if (name && smtpHost && smtpPort && encryption && userName && password) {
         return true;
       }
-    } else if (emailService === "mailgun") {
+    } else if (emailService === "1") {
       if (name && apiKey && webhookKey && domain && zone) {
         return true;
       }
-    } else if (emailService === "sendgrid") {
+    } else if (emailService === "3") {
       if (name && apiKey) {
         return true;
       }
-    } else if (emailService === "ses") {
+    } else if (emailService === "2") {
       if (name && accessKey && secretAccessKey && region && configSetName) {
         return true;
       }
@@ -195,8 +279,24 @@ export default function Home() {
     emailService,
   ]);
 
-  const submitModal = () => {
-    console.log("submitModal");
+  const submitModal = async () => {
+    const data = await publicAxios.post(`/user/services/create`, {
+      name,
+      emailService,
+      accessKey,
+      secretAccessKey,
+      region,
+      configSetName,
+      apiKey,
+      webhookKey,
+      domain,
+      zone: zone ?? null,
+      smtpHost,
+      smtpPort,
+      encryption,
+      userName,
+      password,
+    });
     setName("");
     setAccessKey("");
     setSecretAccessKey("");
@@ -212,6 +312,7 @@ export default function Home() {
     setUserName("");
     setPassword("");
     setIsOpen(false);
+    setrefreshData(true);
   };
   return (
     <Modal
@@ -292,7 +393,7 @@ export default function Home() {
                   ))}
                 </Select>
               </div>
-              {emailService === "smtp" && (
+              {emailService === "4" && (
                 <>
                   <div
                     style={{
@@ -408,7 +509,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-              {emailService === "ses" && (
+              {emailService === "2" && (
                 <>
                   <div
                     style={{
@@ -502,7 +603,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-              {emailService === "mailgun" && (
+              {emailService === "1" && (
                 <>
                   <div
                     style={{
@@ -602,7 +703,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-              {emailService === "sendgrid" && (
+              {emailService === "3" && (
                 <>
                   <div
                     style={{
@@ -668,12 +769,13 @@ export default function Home() {
   );
 }
 
- function EditModal({ isOpen, setIsOpen }) {
+function EditModal({ isOpen, setIsOpen, service, setrefreshData }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
+  setrefreshData(false);
   const [name, setName] = React.useState("");
-  const [emailService, setEmailService] = React.useState("mailgun");
+  const [emailService, setEmailService] = React.useState("1");
   const [smtpHost, setSmtpHost] = React.useState("");
   const [smtpPort, setSmtpPort] = React.useState("");
   const [encryption, setEncryption] = React.useState("");
@@ -688,6 +790,30 @@ export default function Home() {
   const [region, setRegion] = React.useState("");
   const [configSetName, setConfigSetName] = React.useState("");
 
+  const { data } = useFetchSingleService({ uuid: service?.uuid });
+  const { publicAxios }: any = useAxios();
+
+  useEffect(() => {
+    if (data) {
+      const settingsData = data?.settings;
+      setAccessKey(settingsData.accessKey);
+      setName(data?.name);
+      setSmtpHost(settingsData?.smtpHost);
+      setSmtpPort(settingsData?.smtpPort);
+      setEncryption(settingsData?.encryption);
+      setUserName(settingsData?.userName);
+      setPassword(settingsData?.password);
+      setApiKey(settingsData?.apiKey);
+      setWebhookKey(settingsData?.webhookKey);
+      setDomain(settingsData?.domain);
+      setZone(settingsData?.zone);
+      setConfigSetName(settingsData?.configSetName);
+      setEmailService(settingsData?.emailService);
+      setRegion(settingsData?.region);
+      setSecretAccessKey(settingsData?.secretAccessKey);
+    }
+  }, [data]);
+
   const isNameInvalid = React.useMemo(() => {
     if (name === "") return false;
     return false;
@@ -699,19 +825,19 @@ export default function Home() {
   // }, [userName]);
 
   const enableSubmit = React.useMemo(() => {
-    if (emailService === "smtp") {
+    if (emailService === "4") {
       if (name && smtpHost && smtpPort && encryption && userName && password) {
         return true;
       }
-    } else if (emailService === "mailgun") {
+    } else if (emailService === "1") {
       if (name && apiKey && webhookKey && domain && zone) {
         return true;
       }
-    } else if (emailService === "sendgrid") {
+    } else if (emailService === "3") {
       if (name && apiKey) {
         return true;
       }
-    } else if (emailService === "ses") {
+    } else if (emailService === "2") {
       if (name && accessKey && secretAccessKey && region && configSetName) {
         return true;
       }
@@ -735,8 +861,28 @@ export default function Home() {
     emailService,
   ]);
 
-  const submitModal = () => {
-    console.log("submitModal");
+  const submitModal = async () => {
+    const data = await publicAxios.post(
+      `/user/services/${service?.uuid}/edit`,
+      {
+        name,
+        emailService,
+        accessKey,
+        secretAccessKey,
+        region,
+        configSetName,
+        apiKey,
+        webhookKey,
+        domain,
+        zone,
+        smtpHost,
+        smtpPort,
+        encryption,
+        userName,
+        password,
+      }
+    );
+    console.log(data);
     setName("");
     setAccessKey("");
     setSecretAccessKey("");
@@ -752,6 +898,7 @@ export default function Home() {
     setUserName("");
     setPassword("");
     setIsOpen(false);
+    setrefreshData(true);
   };
   return (
     <Modal
@@ -764,7 +911,7 @@ export default function Home() {
         {(onClose) => (
           <div>
             <ModalHeader className="flex flex-col gap-1">
-              Add Email Service
+              Edit Email Service: {name}
             </ModalHeader>
             <ModalBody>
               <div
@@ -810,19 +957,8 @@ export default function Home() {
                   variant={"bordered"}
                   selectedKeys={[emailService]}
                   onChange={(e) => {
-                    setAccessKey("");
-                    setSecretAccessKey("");
-                    setRegion("");
-                    setConfigSetName("");
-                    setApiKey("");
-                    setWebhookKey("");
-                    setDomain("");
-                    setSmtpHost("");
-                    setSmtpPort("");
-                    setEncryption("");
-                    setUserName("");
-                    setPassword("");
                     setEmailService(e.target.value);
+                    console.log(e.target.value);
                   }}
                 >
                   {animals.map((animal) => (
@@ -832,7 +968,7 @@ export default function Home() {
                   ))}
                 </Select>
               </div>
-              {emailService === "smtp" && (
+              {emailService === "4" && (
                 <>
                   <div
                     style={{
@@ -948,7 +1084,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-              {emailService === "ses" && (
+              {emailService === "2" && (
                 <>
                   <div
                     style={{
@@ -1042,7 +1178,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-              {emailService === "mailgun" && (
+              {emailService === "1" && (
                 <>
                   <div
                     style={{
@@ -1142,7 +1278,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-              {emailService === "sendgrid" && (
+              {emailService === "3" && (
                 <>
                   <div
                     style={{
@@ -1198,7 +1334,7 @@ export default function Home() {
                 onPress={() => submitModal()}
                 isDisabled={!enableSubmit}
               >
-                Add
+                Edit
               </Button>
             </ModalFooter>
           </div>
@@ -1208,9 +1344,11 @@ export default function Home() {
   );
 }
 
- function TestServiceModal({ isOpen, setIsOpen }) {
+function TestServiceModal({ isOpen, setIsOpen, service, setrefreshData }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
+
+  const { data } = useFetchSingleService({ uuid: service?.uuid });
 
   const [toEmail, setToEmail] = React.useState("");
   const [fromEmail, setFromEmail] = React.useState("");
@@ -1405,61 +1543,17 @@ export default function Home() {
   );
 }
 
- function DeleteModal({ isOpen, setIsOpen }) {
+function DeleteModal({ isOpen, setIsOpen, service, setrefreshData }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
-  const [toEmail, setToEmail] = React.useState("");
-  // const [isToEmailInvalid, setIsToEmailInvalid] = React.useState(false);
+  const { publicAxios }: any = useAxios();
 
-  const [fromEmail, setFromEmail] = React.useState("");
-  // const [isFromEmailInvalid, setIsFromEmailInvalid] = React.useState(false);
-
-  const [subject, setSubject] = React.useState("");
-  // const [isSubjectInvalid, setIsSubjectInvalid] = React.useState(false);
-
-  const [description, setDescription] = React.useState("");
-  // const [isDescriptionInvalid, setIsDescriptionInvalid] = React.useState("");
-
-  const isToEmailInvalid = React.useMemo(() => {
-    if (toEmail === "") return false;
-
-    return validateEmail(toEmail) ? false : true;
-  }, [toEmail]);
-
-  const isFromEmailInvalid = React.useMemo(() => {
-    if (fromEmail === "") return false;
-
-    return validateEmail(fromEmail) ? false : true;
-  }, [fromEmail]);
-
-  const isSubjectInvalid = React.useMemo(() => {
-    console.log(subject);
-    if (!subject) return false;
-    return false;
-  }, [subject]);
-
-  const isDescriptionInvalid = React.useMemo(() => {
-    if (description === "") return false;
-    return false;
-  }, [description]);
-
-  const enableSubmit = React.useMemo(() => {
-    if (
-      description &&
-      subject &&
-      fromEmail &&
-      toEmail &&
-      !isToEmailInvalid &&
-      !isFromEmailInvalid
-    )
-      return true;
-    return false;
-  }, [description, subject, fromEmail, toEmail]);
+  setrefreshData(false);
 
   const submitModal = () => {
     console.log("submitModal");
-    console.log(enableSubmit);
+    setrefreshData(true);
   };
   return (
     <Modal
@@ -1475,7 +1569,7 @@ export default function Home() {
         {(onClose) => (
           <div>
             <ModalHeader className="flex flex-col gap-1">
-              Confirm Delete: Test
+              Confirm Delete: {service?.name}
             </ModalHeader>
             <ModalBody>
               <div
@@ -1492,18 +1586,7 @@ export default function Home() {
                     color: "#555",
                   }}
                 >
-                  Are you sure that you want to delete the
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      color: "#555",
-                    }}
-                  >
-                    {" "}
-                    Folakunmi Aremu{" "}
-                  </span>
-                  campaign?
+                  Are you sure that you want to delete this service?
                 </p>
               </div>
             </ModalBody>
@@ -1515,7 +1598,17 @@ export default function Home() {
               >
                 Close
               </Button>
-              <Button color="danger" onPress={() => setIsOpen(false)}>
+              <Button
+                color="danger"
+                onPress={() => {
+                  publicAxios
+                    .delete(`/user/services/${service?.uuid}/delete`)
+                    .then(() => {
+                      setrefreshData(true);
+                    });
+                  setIsOpen(false);
+                }}
+              >
                 Delete
               </Button>
             </ModalFooter>
@@ -1526,25 +1619,25 @@ export default function Home() {
   );
 }
 
- const animals = [
+const animals = [
   {
     label: "Mailgun",
-    value: "mailgun",
+    value: "1",
     description: "The second most popular pet in the world",
   },
   {
     label: "SMTP",
-    value: "smtp",
+    value: "4",
     description: "The most popular pet in the world",
   },
   {
     label: "SES",
-    value: "ses",
+    value: "2",
     description: "The largest land animal",
   },
   {
     label: "Sendgrid",
-    value: "sendgrid",
+    value: "3",
     description: "The king of the jungle",
   },
 ];
@@ -1552,12 +1645,12 @@ export default function Home() {
 const zones = [
   {
     label: "EU",
-    value: "eu",
+    value: "EU",
     description: "The second most popular pet in the world",
   },
   {
     label: "US",
-    value: "us",
+    value: "US",
     description: "The most popular pet in the world",
   },
 ];

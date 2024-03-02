@@ -1,11 +1,11 @@
 "use client";
 import Image from "next/image";
 import CustomTable from "../../../components/table";
-import React from "react";
+import React, { useEffect } from "react";
 
 import { columns, users, statusOptions } from "../../../components/data";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { redirect, usePathname, useRouter } from "next/navigation";
 import {
   Dropdown,
   DropdownItem,
@@ -22,11 +22,48 @@ import {
   ModalHeader,
   Textarea,
   useDisclosure,
+  useUser,
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { IoMdAdd } from "react-icons/io";
+import { useFetchCampaigns } from "@/services/AuthServices";
+import { useCreateCampaign } from "@/services/CampaignServices";
+import { useAxios } from "@/context/AxiosContext";
 
 export default function Home() {
+  const [page, setPage] = React.useState(1);
+  const [pages, setPages] = React.useState(1);
+  const [searchText, setSearchText] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [campaignData, setcampaignData] = React.useState([]);
+  const [createCampaign, setcreateCampaign] = React.useState(false);
+  const [deleteCampaign, setdeleteCampaign] = React.useState({});
+  const { publicAxios }: any = useAxios();
+
+  const { user, isLoading, isError, mutate } = useFetchCampaigns({
+    search: searchText,
+    page_size: rowsPerPage,
+    page,
+    status: "DRAFT",
+  });
+
+  useEffect(() => {
+    if (user) {
+      const formattedUser = user?.data?.map((data) => ({
+        ...data,
+        created_at: new Date(data.created_at).toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }));
+
+      setcampaignData(formattedUser);
+      setPages(user?.last_page);
+    }
+  }, [user]);
+
   const pathname = usePathname();
   const router = useRouter();
 
@@ -42,12 +79,7 @@ export default function Home() {
     { name: "", uid: "actions" },
   ];
 
-  const [page, setPage] = React.useState(1);
-  const [pages, setPages] = React.useState(10);
-  const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
-
-  const actionCell = (id) => {
+  const actionCell = (user) => {
     return (
       <div className="relative flex justify-start items-center gap-2">
         <Dropdown className="bg-background border-1 border-default-200">
@@ -59,15 +91,34 @@ export default function Home() {
           <DropdownMenu aria-label="Static Actions">
             <DropdownItem
               onClick={() => {
-                router.push("/app/campaigns/1/preview");
+                router.push(`/app/campaigns/${user?.uuid}/preview`);
               }}
             >
               View
             </DropdownItem>
-            <DropdownItem onClick={() => router.push("/app/campaigns/create")}>
+            <DropdownItem
+              onClick={() => {
+                publicAxios
+                  .get(`/user/campaign/${user?.uuid}/duplicate`)
+                  .then((data) => {
+                    console.group(data);
+                    router.push(
+                      `/app/campaigns/${data?.data?.data?.uuid}/preview`
+                    );
+                  });
+                // router.push("/app/campaigns/create");
+              }}
+            >
               Duplicate
             </DropdownItem>
-            <DropdownItem onClick={onOpen}>Delete</DropdownItem>
+            <DropdownItem
+              onClick={() => {
+                setdeleteCampaign(user);
+                onOpen();
+              }}
+            >
+              Delete
+            </DropdownItem>
           </DropdownMenu>
         </Dropdown>
       </div>
@@ -134,7 +185,10 @@ export default function Home() {
             gap: "3px",
             padding: "10px 15px",
           }}
-          onClick={() => router.push("/app/campaigns/create")}
+          onClick={() => {
+            setcreateCampaign(true);
+            // router.push("/app/campaigns/create");
+          }}
         >
           <IoMdAdd size={15} />
           New Campaign
@@ -144,7 +198,7 @@ export default function Home() {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={users}
+          data={campaignData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -156,72 +210,20 @@ export default function Home() {
           renderActionCell={actionCell}
         />
       </div>
+      {createCampaign && <CreateCampaign />}
       <DeleteModal
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         onOpen={onOpen}
+        campaign={deleteCampaign}
+        mutate={mutate}
       />
     </div>
   );
 }
 
- function DeleteModal({ isOpen, onOpen, onOpenChange }) {
-  const validateEmail = (value) =>
-    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
-
-  const [toEmail, setToEmail] = React.useState("");
-  // const [isToEmailInvalid, setIsToEmailInvalid] = React.useState(false);
-
-  const [fromEmail, setFromEmail] = React.useState("");
-  // const [isFromEmailInvalid, setIsFromEmailInvalid] = React.useState(false);
-
-  const [subject, setSubject] = React.useState("");
-  // const [isSubjectInvalid, setIsSubjectInvalid] = React.useState(false);
-
-  const [description, setDescription] = React.useState("");
-  // const [isDescriptionInvalid, setIsDescriptionInvalid] = React.useState("");
-
-  const isToEmailInvalid = React.useMemo(() => {
-    if (toEmail === "") return false;
-
-    return validateEmail(toEmail) ? false : true;
-  }, [toEmail]);
-
-  const isFromEmailInvalid = React.useMemo(() => {
-    if (fromEmail === "") return false;
-
-    return validateEmail(fromEmail) ? false : true;
-  }, [fromEmail]);
-
-  const isSubjectInvalid = React.useMemo(() => {
-    console.log(subject);
-    if (!subject) return false;
-    return false;
-  }, [subject]);
-
-  const isDescriptionInvalid = React.useMemo(() => {
-    if (description === "") return false;
-    return false;
-  }, [description]);
-
-  const enableSubmit = React.useMemo(() => {
-    if (
-      description &&
-      subject &&
-      fromEmail &&
-      toEmail &&
-      !isToEmailInvalid &&
-      !isFromEmailInvalid
-    )
-      return true;
-    return false;
-  }, [description, subject, fromEmail, toEmail]);
-
-  const submitModal = ({ onClose }) => {
-    console.log("submitModal");
-    console.log(enableSubmit);
-    onClose();
-  };
+function DeleteModal({ isOpen, onOpen, onOpenChange, campaign, mutate }) {
+  const { publicAxios }: any = useAxios();
   return (
     <Modal
       isOpen={isOpen}
@@ -233,7 +235,7 @@ export default function Home() {
         {(onClose) => (
           <div>
             <ModalHeader className="flex flex-col gap-1">
-              Confirm Delete: Test
+              Confirm Delete: {campaign.name}
             </ModalHeader>
             <ModalBody>
               <div
@@ -250,18 +252,7 @@ export default function Home() {
                     color: "#555",
                   }}
                 >
-                  Are you sure that you want to delete the
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      color: "#555",
-                    }}
-                  >
-                    {" "}
-                    Folakunmi Aremu{" "}
-                  </span>
-                  campaign?
+                  Are you sure that you want to delete this campaign?
                 </p>
               </div>
             </ModalBody>
@@ -269,8 +260,18 @@ export default function Home() {
               <Button color="default" variant="flat" onPress={onClose}>
                 Close
               </Button>
-              <Button color="danger" onPress={() => alert("Delete")}>
-                Test
+              <Button
+                color="danger"
+                onPress={() => {
+                  publicAxios
+                    .delete(`/user/campaign/${campaign?.uuid}/delete`)
+                    .then(() => {
+                      onClose();
+                      mutate();
+                    });
+                }}
+              >
+                Delete
               </Button>
             </ModalFooter>
           </div>
@@ -279,7 +280,7 @@ export default function Home() {
     </Modal>
   );
 }
- function CancelModal({ isOpen, onOpen, onOpenChange }) {
+function CancelModal({ isOpen, onOpen, onOpenChange }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -308,7 +309,7 @@ export default function Home() {
   }, [fromEmail]);
 
   const isSubjectInvalid = React.useMemo(() => {
-    console.log(subject);
+    // console.log(subject);
     if (!subject) return false;
     return false;
   }, [subject]);
@@ -401,3 +402,12 @@ export default function Home() {
     </Modal>
   );
 }
+
+const CreateCampaign = () => {
+  const { user } = useCreateCampaign();
+  console.log(user);
+  if (user) {
+    redirect(`/app/campaigns/${user?.uuid}/preview`);
+  }
+  return <div></div>;
+};

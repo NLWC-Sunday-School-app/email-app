@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useAuth } from "../../../context/AuthContext";
 import CustomTable from "../../../components/table";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import { columns, users, statusOptions } from "../../../components/data";
 import {
@@ -22,15 +22,17 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
+import {
+  useCreateMailingList,
+  useListMailingList,
+} from "@/services/MailingListServices";
+import { useAxios } from "@/context/AxiosContext";
 
 export default function Home() {
-  const { loggedinUser }: any = useAuth();
-  console.log(loggedinUser);
-  const raw = 3;
   const router = useRouter();
 
-  const actionCell = (onOpen, item) => {
+  const actionCell = (list) => {
     return (
       <div className="relative flex justify-start items-center gap-2">
         <Dropdown className="bg-background border-1 border-default-200">
@@ -42,12 +44,12 @@ export default function Home() {
           <DropdownMenu aria-label="Static Actions">
             <DropdownItem
               onClick={() => {
-                router.push("/app/mailing-list/1/view");
+                router.push(`/app/mailing-list/${list?.uuid}/view`);
               }}
             >
               View
             </DropdownItem>
-            <DropdownItem onClick={onOpen}>Delete</DropdownItem>
+            <DropdownItem onClick={() => {}}>Delete</DropdownItem>
           </DropdownMenu>
         </Dropdown>
       </div>
@@ -58,17 +60,45 @@ export default function Home() {
 
   const columns = [
     // { name: "ID", uid: "id" },
-    { name: "NAME", uid: "name" },
-    { name: "NUMBER OF SUBSCRIBERS", uid: "subscribers" },
+    {
+      name: "NAME",
+      uid: "name",
+      link: "/app/mailing-list/{uuid}/view",
+      linkKey: "uuid",
+    },
+    { name: "NUMBER OF SUBSCRIBERS", uid: "number_of_subscribers" },
     { name: "DATE CREATED", uid: "created_at" },
-    { name: "", uid: "actions" },
+    // { name: "", uid: "actions" },
   ];
 
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [isOpenAdd, setIsOpenAdd] = useState(false);
+  const [tableData, setTableData] = useState([]);
+
+  const { data, isLoading, error, mutate } = useListMailingList({
+    search: searchText,
+    page_size: rowsPerPage,
+    page: page,
+  });
+
+  useEffect(() => {
+    if (data) {
+      const formattedUser = data?.data?.map((data) => ({
+        ...data,
+        created_at: new Date(data.created_at).toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      }));
+      setTableData(formattedUser);
+      setPages(data?.meta?.last_page);
+    }
+  }, [data]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -103,7 +133,7 @@ export default function Home() {
         <CustomTable
           headers={tableHeaders}
           columns={columns}
-          data={users}
+          data={tableData}
           page={page}
           setPage={setPage}
           rowsPerPage={rowsPerPage}
@@ -113,6 +143,7 @@ export default function Home() {
           pages={pages}
           setPages={setPages}
           renderActionCell={actionCell}
+          dataIsLink={["name"]}
         />
       </div>
       <AddNewModal isOpen={isOpenAdd} setIsOpen={setIsOpenAdd} />
@@ -125,6 +156,9 @@ function AddNewModal({ isOpen, setIsOpen }) {
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
   const [name, setName] = React.useState("");
+  const { publicAxios }: any = useAxios();
+
+  const [createMailingList, setcreateMailingList] = useState(false);
   const router = useRouter();
 
   const enableSubmit = React.useMemo(() => {
@@ -132,11 +166,11 @@ function AddNewModal({ isOpen, setIsOpen }) {
     return false;
   }, [name]);
 
-  const submitModal = () => {
-    console.log("submitModal");
-    setName("");
-    setIsOpen(false);
-    router.push("/app/mailing-list/1/view");
+  const submitModal = async () => {
+    const newList = await publicAxios.post(`/user/mailing-list/create`, {
+      name: name,
+    });
+    router.push(`/app/mailing-list/${newList.data.data.uuid}/view`);
   };
   return (
     <Modal
@@ -173,6 +207,7 @@ function AddNewModal({ isOpen, setIsOpen }) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
+                {createMailingList && <CreateMailingList name={name} />}
               </div>
             </ModalBody>
             <ModalFooter>
@@ -201,3 +236,11 @@ function AddNewModal({ isOpen, setIsOpen }) {
     </Modal>
   );
 }
+
+const CreateMailingList = ({ name }) => {
+  const { user } = useCreateMailingList({ name });
+  if (user) {
+    redirect(`/app/mailing-list/${user?.uuid}/view`);
+  }
+  return <div></div>;
+};

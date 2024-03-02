@@ -3,16 +3,19 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import CustomTable from "@/components/table";
 import { TickCircleIcon } from "@/components/TickCircleIcon";
-import React, { useState, Component } from "react";
-import "md-editor-rt/lib/style.css";
-import dynamic from "next/dynamic";
-import "@uiw/react-markdown-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
+import React, { useState, Component, useEffect, Suspense, useRef } from "react";
+// import "md-editor-rt/lib/style.css";
+// import dynamic from "next/dynamic";
+// import "@uiw/react-markdown-editor/markdown-editor.css";
+// import "@uiw/react-markdown-preview/markdown.css";
 import "@/components/template-globals.css";
 
-import MarkdownEditor from "@uiw/react-markdown-editor";
-import { usePathname, useRouter } from "next/navigation";
+// import MarkdownEditor from "@uiw/react-markdown-editor";
+import { redirect, usePathname, useRouter } from "next/navigation";
+import { useRouter as nextRouter } from "next/router";
 import {
+  Autocomplete,
+  AutocompleteItem,
   Button,
   Input,
   Modal,
@@ -24,38 +27,65 @@ import {
   SelectItem,
   User,
   cn,
+  useDisclosure,
 } from "@nextui-org/react";
 import { useInfiniteScroll } from "@nextui-org/use-infinite-scroll";
 import { useTemplatesList } from "@/components/useTemplatesList";
 import { Accordion, AccordionItem, Switch } from "@nextui-org/react";
-import { DatePicker, TimePicker } from "@mui/x-date-pickers";
+import { DatePicker, DateTimePicker, TimePicker } from "@mui/x-date-pickers";
 import { Card, CardHeader, CardBody, CardFooter } from "@nextui-org/react";
 import { CheckboxGroup, Checkbox } from "@nextui-org/react";
 import Link from "next/link";
 import EasyEdit from "react-easy-edit";
+import {
+  canEditQueuedCampaign,
+  useDeleteOneCampaign,
+  useViewOneCampaign,
+} from "@/services/CampaignServices";
+import { useListTemplates } from "@/services/TemplateServices";
+// import { CKEditor as CKEditor5 } from "@ckeditor/ckeditor5-react";
+import Editor from "ckeditor5-custom-build";
+import AsyncSelect, { useAsync } from "react-select/async";
+import { useAxios } from "@/context/AxiosContext";
+import { useAsyncList } from "@react-stately/data";
+import { Chip } from "@nextui-org/react";
+import dayjs from "dayjs";
+import debounce from "lodash.debounce";
 
-export default function Home() {
-  const { loggedinUser }: any = useAuth();
+export default function Home({ params }) {
   const [campaignName, setCampaignName] = useState("Untitled Campaign");
   const [mailSubject, setMailSubject] = useState("");
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState("New Template");
-  const [selectedEmailService, setSelectedEmailService] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<any>({});
+  const [selectedTemplateName, setSelectedTemplateName] = useState("");
+  const [selectedEmailService, setSelectedEmailService] = useState<any>({});
+  const [mailingList, setMailingList] = useState<any>({});
   const [trackOpens, setTrackOpens] = useState(false);
   const [trackClicks, setTrackClicks] = useState(false);
   const [mailContent, setMailContent] = useState("");
   const [sendTime, setSendTime] = React.useState("send-now");
-  const [sendLaterTime, setSendLaterTime] = React.useState("");
+  const [sendLaterTime, setSendLaterTime] = React.useState(
+    dayjs("+5 minutes").format("YYYY-MM-DD HH:mm:ss")
+  );
+  const [testEmail, setTestEmail] = React.useState("");
   const [sendLaterDate, setSendLaterDate] = React.useState("");
   const [isOpenDelete, setIsOpenDelete] = useState(false);
+  const {
+    isOpen: isOpenPreview,
+    onOpen: onOpenPreview,
+    onOpenChange: onOpenChangePreview,
+  } = useDisclosure();
+  let editorRef = useRef<any>();
+
+  const { publicAxios }: any = useAxios();
 
   const clearContents = () => {
     setCampaignName("");
     setMailSubject("");
     setFromName("");
     setFromEmail("");
-    setSelectedTemplate("New Template");
+    setSelectedTemplate("-1");
     setSelectedEmailService("");
     setTrackOpens(false);
     setTrackClicks(false);
@@ -66,18 +96,10 @@ export default function Home() {
     if (selectedTemplate === "New Template") return true;
     return false;
   }, [selectedTemplate]);
-
-  const [isOpen, setIsOpen] = React.useState(false);
-  const { items, hasMore, isLoading, onLoadMore } = useTemplatesList({
-    fetchDelay: 1500,
-  });
-
-  const [, scrollerRef] = useInfiniteScroll({
-    hasMore,
-    isEnabled: isOpen,
-    shouldUseLoader: false, // We don't want to show the loader at the bottom of the list
-    onLoadMore,
-  });
+  const isToSectionFilled = React.useMemo(
+    () => (mailingList ? true : false),
+    [mailingList]
+  );
 
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
@@ -86,11 +108,88 @@ export default function Home() {
     if (!fromEmail) return false;
     return validateEmail(fromEmail) ? false : true;
   }, [fromEmail]);
+  const isTestEmailInvalid = React.useMemo(() => {
+    if (!testEmail) return false;
+    return validateEmail(testEmail) ? false : true;
+  }, [testEmail]);
+
+  const isFromSectionFilled = React.useMemo(
+    () => (fromName && !isFromEmailInvalid ? true : false),
+    [fromName, fromEmail]
+  );
+  const isSubjectSectionFilled = React.useMemo(
+    () => (mailSubject ? true : false),
+    [mailSubject]
+  );
+  const isSendTimeSectionFilled = React.useMemo(() => {}, [sendTime]);
+  const isEmailServiceSectionFilled = React.useMemo(
+    () => (selectedEmailService ? true : false),
+    [selectedEmailService]
+  );
+  const isContentSectionFilled = React.useMemo(
+    () => (mailContent ? true : false),
+    [mailContent]
+  );
+
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  let templateList = useAsyncList({
+    async load({ signal, filterText }) {
+      if (!filterText) {
+        return {
+          items: [],
+        };
+      }
+      let res = await publicAxios.get(
+        `/user/template/list?search=${filterText}&page=1&page_size=30`,
+        { signal }
+      );
+
+      return {
+        items: res?.data?.data,
+      };
+    },
+  });
+
+  let mailingListList = useAsyncList({
+    async load({ signal, filterText }) {
+      if (!filterText) {
+        return {
+          items: [],
+        };
+      }
+      let res = await publicAxios.get(
+        `/user/mailing-list/list?search=${filterText}&page=1&page_size=30`,
+        { signal }
+      );
+
+      return {
+        items: res?.data?.data,
+      };
+    },
+  });
+
+  let emailServicesList = useAsyncList({
+    async load({ signal, filterText }) {
+      if (!filterText) {
+        return {
+          items: [],
+        };
+      }
+      let res = await publicAxios.get(
+        `/user/services/list?search=${filterText}&page=1&page_size=30`,
+        { signal }
+      );
+      console.log(res);
+
+      return {
+        items: res?.data?.data?.data ?? [],
+      };
+    },
+  });
 
   const router = useRouter();
-  const [selectedKeys, setSelectedKeys] = React.useState(new Set(["1"]));
-  const defaultContent =
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+
   const save = (value) => {
     // alert(value);
     setCampaignName(value);
@@ -98,6 +197,87 @@ export default function Home() {
   const cancel = () => {
     alert("Cancelled");
   };
+
+  const { data, isError } = useViewOneCampaign({ uuid: params.id });
+
+  useEffect(() => {
+    if (data) {
+      // if (
+      //   data?.status == "QUEUED" &&
+      //   !canEditQueuedCampaign(data?.scheduled_at)
+      // ) {
+      //   router.push(`/app/campaigns/${data?.uuid}/status`);
+      // }
+
+      setCampaignName(data?.name);
+      setMailSubject(data?.subject);
+      setFromName(data?.from_name);
+      setFromEmail(data?.from_email);
+      setSelectedTemplate(data?.template);
+      setSelectedEmailService(data?.email_service);
+      setTrackOpens(data?.is_open_tracking);
+      setTrackClicks(data?.is_click_tracking);
+      setMailContent(data?.content ?? data?.template?.content);
+      if (data?.template_uuid && data?.template != null) {
+        // setSelectedTemplateName(data?.template?.name);
+      }
+      setMailingList(data?.mailing_list);
+      setSelectedEmailService(data?.service);
+      setSendLaterTime(
+        data?.scheduled_at ??
+          dayjs().add(5, "minutes").format("YYYY-MM-DD HH:mm:ss")
+      );
+    }
+  }, [data]);
+
+  const updateCampaign = debounce(async () => {
+    let res = await publicAxios.post(`/user/campaign/${params.id}/edit`, {
+      name: campaignName,
+      from_name: fromName,
+      from_email: fromEmail,
+      subject: mailSubject,
+      content: mailContent,
+      is_open_tracking: trackOpens,
+      status: "DRAFT",
+      is_click_tracking: trackClicks,
+      template_uuid: selectedTemplate?.uuid ?? null,
+      email_service_uuid: selectedEmailService?.uuid ?? null,
+      mailing_list_uuid: mailingList?.uuid ?? null,
+      send_when: sendTime == "send-later" ? "SEND_LATER" : "SEND_NOW",
+      scheduled_at:
+        sendTime == "send-later"
+          ? sendLaterTime
+          : dayjs().format("YYYY-MM-DD HH:mm:ss"),
+    });
+    console.log(res);
+    console.log("Auto-saving:", fromName);
+  }, 1500);
+  useEffect(() => {
+    if (!isFromEmailInvalid) {
+      updateCampaign();
+    }
+    return () => {
+      updateCampaign.cancel();
+    };
+  }, [fromName, fromEmail]);
+
+  useEffect(() => {
+    updateCampaign();
+    return () => {
+      updateCampaign.cancel();
+    };
+  }, [
+    sendTime,
+    sendLaterTime,
+    trackClicks,
+    trackOpens,
+    selectedTemplate,
+    mailContent,
+    selectedEmailService,
+    mailingList,
+    mailSubject,
+    campaignName,
+  ]);
   return (
     <div>
       <div
@@ -113,39 +293,50 @@ export default function Home() {
           fontSize: "30px",
         }}
       >
-        {/* <Button
-          color="default"
-          radius="sm"
-          style={{
-            borderRadius: "5px",
-            borderWidth: "0.5px",
-            backgroundColor: "white",
-          }}
-          onPress={() => {
-            router.push("/app/campaigns/2/edit");
-          }}
-          className="border-2 "
-        >
-          Edit
-        </Button> */}
-        <EasyEdit
-          type="text"
-          onSave={save}
-          attributes={{ name: "awesome-input", id: 1 }}
-          // instructions="Star this repo!"
-          saveOnBlur
-          value={campaignName}
-        />
-        <Button
-          color="danger"
-          style={{ borderRadius: "5px" }}
-          onPress={() => {
-            setIsOpenDelete(true);
-          }}
-        >
-          Cancel
-        </Button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <EasyEdit
+            type="text"
+            onSave={save}
+            attributes={{ name: "awesome-input", id: 1 }}
+            // instructions="Star this repo!"
+            saveOnBlur
+            value={campaignName}
+          />
+          <span
+            style={{
+              fontSize: "12px",
+              paddingTop: "12px",
+              color: "rgb(25, 169, 116)",
+            }}
+          >
+            (Changes are automatically saved in draft.)
+          </span>
+        </div>
+        <div style={{ gap: "10px", display: "flex" }}>
+          {/* <Link href="/app/campaigns"> */}
+          <Button onPress={onOpenPreview}>Preview in full</Button>
+          <Button
+            color="default"
+            style={{ borderRadius: "5px" }}
+            onPress={() => {
+              router.push(`/app/campaigns`);
+            }}
+          >
+            Return to Drafts
+          </Button>
+          {/* </Link> */}
+          <Button
+            color="danger"
+            style={{ borderRadius: "5px" }}
+            onPress={() => {
+              setIsOpenDelete(true);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
+
       <div className="flex md:flex-row flex-col" style={{ height: "100%" }}>
         <div
           style={{
@@ -153,41 +344,70 @@ export default function Home() {
             margin: "30px 10px",
           }}
         >
-          <Accordion
-            variant="shadow"
-            // selectionMode="none"
-            // selectedKeys={selectedKeys}
-            // onSelectionChange={setSelectedKeys}
-            // defaultSelectedKeys={["5"]}
-          >
+          <Accordion variant="shadow">
             <AccordionItem
               key="1"
               aria-label="To"
               subtitle="Who are you sending this email to?"
               title="To"
-              startContent={<TickCircleIcon color={"black"} />}
+              startContent={
+                <TickCircleIcon
+                  color={isToSectionFilled ? "black" : "lightgray"}
+                />
+              }
             >
-              <div
-                style={{
-                  padding: "10px 35px",
-                }}
-              >
+              <div style={{ padding: "10px 35px" }}>
                 <div>
-                  <p style={{ fontSize: "30px" }}>No Mailing List</p>
-                  <p style={{ fontSize: "18px", width: "70%" }}>
-                    You can upload a spreadsheet of contacts or import them one
-                    by one. Your email draft is saved under Campaigns, and you
-                    can come back to it any time.
-                  </p>
+                  <label
+                    style={{ display: "flex", gap: "5px", fontSize: "14px" }}
+                  >
+                    Selected Mailing List
+                  </label>
+                  <Chip
+                    onClose={() => {
+                      setMailingList(null);
+                    }}
+                  >
+                    {mailingList?.name ?? "No Mailing List Selected"}
+                  </Chip>
                   <div
                     style={{
+                      width: "100%",
                       display: "flex",
-                      justifyContent: "flex-start",
-                      alignSelf: "center",
-                      gap: "10px",
+                      flexDirection: "column",
+                      gap: "5px",
                       paddingTop: "20px",
                     }}
                   >
+                    <Autocomplete
+                      aria-label="Select Template"
+                      variant={"bordered"}
+                      inputValue={mailingListList?.filterText}
+                      isLoading={mailingListList?.isLoading}
+                      items={mailingListList?.items}
+                      onInputChange={mailingListList.setFilterText}
+                      onSelectionChange={(e) => {
+                        let selectedItem = mailingListList.items.find(
+                          (option: any) => option.uuid === e
+                        );
+                        setMailingList(selectedItem);
+
+                        // setMailContent(selectedItem ? selectedItem.content : "");
+                      }}
+                      labelPlacement="outside"
+                      radius={"sm"}
+                      placeholder="Select Mailing List"
+                      onOpenChange={setIsOpen}
+                    >
+                      {(item: any) => (
+                        <AutocompleteItem
+                          key={item.uuid}
+                          className="capitalize"
+                        >
+                          {item.name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
                     <Link href="/app/mailing-list" target="_blank">
                       <Button
                         color="default"
@@ -205,37 +425,6 @@ export default function Home() {
                     </Link>
                   </div>
                 </div>
-                <div>
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "5px",
-                    }}
-                  >
-                    <Select
-                      aria-label="Select Template"
-                      variant={"bordered"}
-                      isLoading={isLoading}
-                      labelPlacement="outside"
-                      radius={"sm"}
-                      items={items}
-                      placeholder="Select Mailing List"
-                      scrollRef={scrollerRef}
-                      selectionMode="single"
-                      onOpenChange={setIsOpen}
-                      value={[selectedTemplate]}
-                      onChange={(e) => setSelectedTemplate(e.target.value)}
-                    >
-                      {(item: any) => (
-                        <SelectItem key={item.name} className="capitalize">
-                          {item.name}
-                        </SelectItem>
-                      )}
-                    </Select>
-                  </div>
-                </div>
               </div>
             </AccordionItem>
             <AccordionItem
@@ -243,7 +432,11 @@ export default function Home() {
               aria-label="From"
               subtitle="Who is sending this email?"
               title="From"
-              startContent={<TickCircleIcon color={"black"} />}
+              startContent={
+                <TickCircleIcon
+                  color={isFromSectionFilled ? "black" : "lightgray"}
+                />
+              }
               style={{
                 cursor: "default",
               }}
@@ -312,7 +505,7 @@ export default function Home() {
                     />
                   </div>
                 </div>
-                <div
+                {/* <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-start",
@@ -346,7 +539,7 @@ export default function Home() {
                   >
                     Cancel
                   </Button>
-                </div>
+                </div> */}
               </div>
             </AccordionItem>
             <AccordionItem
@@ -354,7 +547,11 @@ export default function Home() {
               aria-label="Subject"
               subtitle="What's the subject line for this email?"
               title="Subject"
-              startContent={<TickCircleIcon color={"lightgrey"} />}
+              startContent={
+                <TickCircleIcon
+                  color={isSubjectSectionFilled ? "black" : "lightgray"}
+                />
+              }
             >
               <div
                 style={{
@@ -382,7 +579,7 @@ export default function Home() {
                     onChange={(e) => setMailSubject(e.target.value)}
                   />
                 </div>
-                <div
+                {/* <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-start",
@@ -415,7 +612,7 @@ export default function Home() {
                   >
                     Cancel
                   </Button>
-                </div>
+                </div> */}
               </div>
             </AccordionItem>
             <AccordionItem
@@ -423,7 +620,7 @@ export default function Home() {
               aria-label="Send time"
               subtitle="When should we send this email?"
               title="Send time"
-              startContent={<TickCircleIcon color={"lightgrey"} />}
+              startContent={<TickCircleIcon color={"black"} />}
             >
               <div
                 style={{
@@ -507,16 +704,26 @@ export default function Home() {
                   >
                     <div>
                       <p>Select Date</p>
-                      <DatePicker
+                      {/* <DatePicker
                         value={sendLaterDate}
                         onChange={(newValue) => {
                           console.log(newValue);
                           setSendLaterDate(newValue);
                         }}
+                      /> */}
+
+                      <DateTimePicker
+                        disablePast
+                        value={dayjs(sendLaterTime)}
+                        onChange={(newValue) => {
+                          setSendLaterTime(
+                            dayjs(newValue).format("YYYY-MM-DD HH:mm:ss")
+                          );
+                        }}
                       />
                     </div>
 
-                    <div>
+                    {/* <div>
                       <p>Select Time</p>
                       <TimePicker
                         value={sendLaterTime}
@@ -525,10 +732,10 @@ export default function Home() {
                           setSendLaterTime(newValue);
                         }}
                       />
-                    </div>
+                    </div> */}
                   </div>
                 )}
-                <div
+                {/* <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-start",
@@ -561,7 +768,7 @@ export default function Home() {
                   >
                     Cancel
                   </Button>
-                </div>
+                </div> */}
               </div>
               {/* <TimePicker label="Basic time picker" /> */}
             </AccordionItem>
@@ -570,7 +777,7 @@ export default function Home() {
               aria-label="Tracking Option"
               subtitle="What should we track after sending the mail?"
               title="Tracking Option"
-              startContent={<TickCircleIcon color={"lightgrey"} />}
+              startContent={<TickCircleIcon color={"black"} />}
             >
               <div
                 style={{
@@ -585,6 +792,8 @@ export default function Home() {
                   className="flex md:flex-row flex-col"
                 >
                   <Switch
+                    isSelected={trackOpens}
+                    onValueChange={setTrackOpens}
                     classNames={{
                       base: cn(
                         "inline-flex flex-row-reverse w-full max-w-md bg-content1 hover:bg-content2 items-center",
@@ -611,6 +820,8 @@ export default function Home() {
                     </div>
                   </Switch>
                   <Switch
+                    isSelected={trackClicks}
+                    onValueChange={setTrackClicks}
                     classNames={{
                       base: cn(
                         "inline-flex flex-row-reverse w-full max-w-md bg-content1 hover:bg-content2 items-center",
@@ -638,7 +849,7 @@ export default function Home() {
                   </Switch>
                 </div>
 
-                <div
+                {/* <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-start",
@@ -671,86 +882,211 @@ export default function Home() {
                   >
                     Cancel
                   </Button>
-                </div>
+                </div> */}
               </div>
               {/* <TimePicker label="Basic time picker" /> */}
             </AccordionItem>
             <AccordionItem
               key="6"
-              aria-label="Content"
-              subtitle="Design the Content for your email."
-              title="Content"
-              startContent={<TickCircleIcon color={"lightgrey"} />}
+              aria-label="Email Service"
+              subtitle="Which service are you using to send this email?"
+              title="Email Service"
+              startContent={
+                <TickCircleIcon
+                  color={isEmailServiceSectionFilled ? "black" : "lightgrey"}
+                />
+              }
             >
               <div
                 style={{
                   padding: "10px 35px",
                 }}
               >
+                <div>
+                  <label
+                    style={{ display: "flex", gap: "5px", fontSize: "14px" }}
+                  >
+                    Selected Email Service
+                  </label>
+                  <Chip
+                    onClose={() => {
+                      setSelectedEmailService(null);
+                    }}
+                  >
+                    {selectedEmailService?.name ?? "No Service Selected"}
+                  </Chip>
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "5px",
+                      paddingTop: "20px",
+                    }}
+                  >
+                    <Autocomplete
+                      aria-label="Select Template"
+                      variant={"bordered"}
+                      inputValue={emailServicesList?.filterText}
+                      isLoading={emailServicesList?.isLoading}
+                      items={emailServicesList?.items}
+                      onInputChange={emailServicesList.setFilterText}
+                      onSelectionChange={(e) => {
+                        let selectedItem = emailServicesList.items.find(
+                          (option: any) => option.uuid === e
+                        );
+                        setSelectedEmailService(selectedItem);
+
+                        // setMailContent(selectedItem ? selectedItem.content : "");
+                      }}
+                      labelPlacement="outside"
+                      radius={"sm"}
+                      placeholder="Select Mailing List"
+                      onOpenChange={setIsOpen}
+                      value={[selectedTemplate]}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                    >
+                      {(item: any) => (
+                        <AutocompleteItem
+                          key={item.uuid}
+                          className="capitalize"
+                        >
+                          {item.name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+                  </div>
+                </div>
+              </div>
+            </AccordionItem>
+            <AccordionItem
+              key="7"
+              aria-label="Content"
+              subtitle="Design the Content for your email."
+              title="Content"
+              startContent={
+                <TickCircleIcon
+                  color={isContentSectionFilled ? "black" : "lightgrey"}
+                />
+              }
+            >
+              <div
+                style={{
+                  padding: "10px 35px",
+                }}
+              >
+                <label
+                  style={{ display: "flex", gap: "5px", fontSize: "14px" }}
+                >
+                  Selected Template
+                </label>
+                <Chip
+                  onClose={() => {
+                    setSelectedTemplate(null);
+                    setSelectedTemplateName(null);
+                  }}
+                >
+                  {selectedTemplate?.name ?? "No Template Selected"}
+                </Chip>
+                {/* <Chip></Chip> */}
                 <div
                   style={{
                     width: "100%",
                     display: "flex",
                     flexDirection: "column",
                     gap: "5px",
+                    paddingTop: "20px",
                   }}
                 >
                   <label
                     style={{ display: "flex", gap: "5px", fontSize: "14px" }}
                   >
-                    Template
+                    Change Template
                   </label>
-                  <Select
-                    aria-label="Select Template"
+                  <Autocomplete
+                    aria-label="Change Template"
                     variant={"bordered"}
-                    isLoading={isLoading}
+                    inputValue={templateList.filterText}
+                    isLoading={templateList.isLoading}
+                    items={templateList.items}
+                    // scrollRef={scrollerRef}
+                    onOpenChange={setIsOpen}
+                    onInputChange={templateList.setFilterText}
+                    value={[selectedTemplate]}
+                    onSelectionChange={(e) => {
+                      let selectedItem: any = templateList.items.find(
+                        (option: any) => option.uuid === e
+                      );
+                      setSelectedTemplate(selectedItem);
+                      setSelectedTemplateName(
+                        selectedItem ? selectedItem.name : ""
+                      );
+                      if (editorRef) {
+                        editorRef?.current.data.set(
+                          selectedItem ? selectedItem.content : "",
+                          { batchType: { isUndoable: true } }
+                        );
+                      }
+                      // setMailContent(selectedItem ? selectedItem.content : "");
+                    }}
                     labelPlacement="outside"
                     radius={"sm"}
-                    items={items}
-                    placeholder="Select Template"
-                    scrollRef={scrollerRef}
-                    selectionMode="single"
-                    onOpenChange={setIsOpen}
-                    value={[selectedTemplate]}
-                    onChange={(e) => setSelectedTemplate(e.target.value)}
-                    defaultSelectedKeys={["New Template"]}
+                    placeholder="Change Template"
+                    autoComplete="on"
                   >
                     {(item: any) => (
-                      <SelectItem key={item.name} className="capitalize">
+                      <AutocompleteItem key={item.uuid} className="capitalize">
                         {item.name}
-                      </SelectItem>
+                      </AutocompleteItem>
                     )}
-                  </Select>
+                  </Autocomplete>
                 </div>
-                {selectedTemplate == "New Template" && (
-                  <div
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    flex: 1,
+                    width: "100%",
+                    height: "500px",
+                    paddingTop: "20px",
+                  }}
+                >
+                  <label
                     style={{
                       display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      gap: "10px",
-                      flex: 1,
-                      width: "100%",
-                      height: "500px",
-                      paddingTop: "20px",
+                      gap: "5px",
+                      fontSize: "14px",
                     }}
-                  >
-                    <label
-                      style={{
-                        display: "flex",
-                        gap: "5px",
-                        fontSize: "14px",
-                      }}
-                    ></label>
-                    <MarkdownEditor
-                      value={mailContent}
-                      onChange={(value, viewUpdate) => setMailContent(value)}
-                      // width="100%"
-                      height="100%"
-                    />
+                  ></label>
+                  <div style={{ overflow: "scroll" }}>
+                    {/* <Suspense fallback={null}>
+                      <CKEditor5
+                        ref={editorRef}
+                        editor={Editor}
+                        data={mailContent}
+                        onReady={(editor) => {
+                          editorRef.current = editor;
+                          // You can store the "editor" and use when it is needed.
+                          // console.log("Editor is ready to use!", editor);
+                        }}
+                        onChange={(event, editor) => {
+                          // console.log(editor);
+                          setMailContent(editor.getData());
+                          // console.log("change", editor.getData());
+                        }}
+                        onBlur={(event, editor) => {
+                          // console.log("Blur.", editor);
+                        }}
+                        onFocus={(event, editor) => {
+                          // console.log("Focus.", editor);
+                        }}
+                      />
+                    </Suspense> */}
                   </div>
-                )}
-                <div
+                </div>
+                {/* <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-start",
@@ -783,7 +1119,7 @@ export default function Home() {
                   >
                     Cancel
                   </Button>
-                </div>
+                </div> */}
               </div>
             </AccordionItem>
           </Accordion>
@@ -819,7 +1155,7 @@ export default function Home() {
                   width: "100%",
                   display: "flex",
                   flexDirection: "column",
-                  gap: "5px",
+                  gap: "15px",
                 }}
               >
                 <label
@@ -839,28 +1175,37 @@ export default function Home() {
                   size="sm"
                   placeholder="Enter your email"
                   variant="bordered"
-                  // value={toEmail}
-                  // onChange={(e) => setToEmail(e.target.value)}
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
                   // isInvalid={isToEmailInvalid}
                   // errorMessage={isToEmailInvalid ? "Please enter a valid email" : ""}
                 />
+                <Button
+                  style={{
+                    borderRadius: "3px",
+                    padding: "5px 10px",
+                    fontSize: "11px",
+                    color: "#5d63ff",
+                    backgroundColor: "#d9e2ec",
+                    width: "120px",
+                    paddingTop: "5px",
+                  }}
+                  onClick={() => {
+                    publicAxios.get(
+                      `user/campaign/${params.id}/send/test?to=${testEmail}`
+                    );
+                  }}
+                  disabled={
+                    isTestEmailInvalid ||
+                    !isFromSectionFilled ||
+                    !isContentSectionFilled ||
+                    !isEmailServiceSectionFilled ||
+                    !isSubjectSectionFilled
+                  }
+                >
+                  Send Test Email
+                </Button>
               </div>
-              <br />
-              <button
-                style={{
-                  borderRadius: "3px",
-                  padding: "5px 10px",
-                  fontSize: "11px",
-                  color: "#5d63ff",
-                  backgroundColor: "#d9e2ec",
-                  width: "120px",
-                }}
-                onClick={() => {
-                  alert("Email Sent");
-                }}
-              >
-                Send Test Email
-              </button>
             </div>
 
             <div
@@ -872,7 +1217,7 @@ export default function Home() {
                 paddingBottom: "30px",
               }}
             >
-              <Button
+              {/* <Button
                 color="default"
                 radius="sm"
                 style={{
@@ -886,12 +1231,23 @@ export default function Home() {
                 className="border-2 "
               >
                 Back
-              </Button>
+              </Button> */}
               <Button
                 color="primary"
                 style={{ borderRadius: "5px" }}
+                disabled={
+                  !isFromSectionFilled ||
+                  !isContentSectionFilled ||
+                  !isEmailServiceSectionFilled ||
+                  !isToSectionFilled ||
+                  !isSubjectSectionFilled
+                }
                 onPress={() => {
-                  router.push("/app/campaigns/2/status");
+                  publicAxios
+                    .get(`/user/campaign/${params.id}/send`)
+                    .then((res) => {
+                      router.push(`/app/campaigns/${params.id}/status`);
+                    });
                 }}
               >
                 Send Campaign
@@ -899,7 +1255,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div
+        {/* <div
           style={{
             display: "flex",
             flexDirection: "column",
@@ -939,70 +1295,29 @@ export default function Home() {
               }
             />
           </div>
-        </div>
+        </div> */}
       </div>
 
-      <DeleteModal isOpen={isOpenDelete} setIsOpen={setIsOpenDelete} />
+      <DeleteModal
+        isOpen={isOpenDelete}
+        setIsOpen={setIsOpenDelete}
+        campaign={data}
+      />
+      {isOpenPreview && (
+        <PreviewModal
+          isOpen={isOpenPreview}
+          onOpenChange={onOpenChangePreview}
+          campaign={data}
+          content={mailContent}
+        />
+      )}
     </div>
   );
 }
 
-function DeleteModal({ isOpen, setIsOpen }) {
-  const validateEmail = (value) =>
-    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
-
-  const [toEmail, setToEmail] = React.useState("");
-  // const [isToEmailInvalid, setIsToEmailInvalid] = React.useState(false);
-
-  const [fromEmail, setFromEmail] = React.useState("");
-  // const [isFromEmailInvalid, setIsFromEmailInvalid] = React.useState(false);
-
-  const [subject, setSubject] = React.useState("");
-  // const [isSubjectInvalid, setIsSubjectInvalid] = React.useState(false);
-
-  const [description, setDescription] = React.useState("");
-  // const [isDescriptionInvalid, setIsDescriptionInvalid] = React.useState("");
-
-  const isToEmailInvalid = React.useMemo(() => {
-    if (toEmail === "") return false;
-
-    return validateEmail(toEmail) ? false : true;
-  }, [toEmail]);
-
-  const isFromEmailInvalid = React.useMemo(() => {
-    if (fromEmail === "") return false;
-
-    return validateEmail(fromEmail) ? false : true;
-  }, [fromEmail]);
-
-  const isSubjectInvalid = React.useMemo(() => {
-    console.log(subject);
-    if (!subject) return false;
-    return false;
-  }, [subject]);
-
-  const isDescriptionInvalid = React.useMemo(() => {
-    if (description === "") return false;
-    return false;
-  }, [description]);
-
-  const enableSubmit = React.useMemo(() => {
-    if (
-      description &&
-      subject &&
-      fromEmail &&
-      toEmail &&
-      !isToEmailInvalid &&
-      !isFromEmailInvalid
-    )
-      return true;
-    return false;
-  }, [description, subject, fromEmail, toEmail]);
-
-  const submitModal = () => {
-    console.log("submitModal");
-    console.log(enableSubmit);
-  };
+function DeleteModal({ isOpen, setIsOpen, campaign }) {
+  const { publicAxios }: any = useAxios();
+  const router = useRouter();
   return (
     <Modal
       isOpen={isOpen}
@@ -1017,7 +1332,7 @@ function DeleteModal({ isOpen, setIsOpen }) {
         {(onClose) => (
           <div>
             <ModalHeader className="flex flex-col gap-1">
-              Confirm Delete: Test
+              Confirm Delete: {campaign?.name}
             </ModalHeader>
             <ModalBody>
               <div
@@ -1034,18 +1349,7 @@ function DeleteModal({ isOpen, setIsOpen }) {
                     color: "#555",
                   }}
                 >
-                  Are you sure that you want to delete the
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      color: "#555",
-                    }}
-                  >
-                    {" "}
-                    Folakunmi Aremu{" "}
-                  </span>
-                  campaign?
+                  Are you sure that you want to delete this campaign?
                 </p>
               </div>
             </ModalBody>
@@ -1057,7 +1361,18 @@ function DeleteModal({ isOpen, setIsOpen }) {
               >
                 Close
               </Button>
-              <Button color="danger" onPress={() => setIsOpen(false)}>
+              <Button
+                color="danger"
+                onPress={() => {
+                  publicAxios
+                    .delete(`/user/campaign/${campaign?.uuid}/delete`)
+                    .then(() => {
+                      setIsOpen(false);
+                      router.push("/app/campaigns");
+                    });
+                  setIsOpen(false);
+                }}
+              >
                 Delete
               </Button>
             </ModalFooter>
@@ -1067,1081 +1382,43 @@ function DeleteModal({ isOpen, setIsOpen }) {
     </Modal>
   );
 }
-
-const animals = [
-  {
-    label: "Cat",
-    value: "cat",
-    description: "The second most popular pet in the world",
-  },
-  {
-    label: "Dog",
-    value: "dog",
-    description: "The most popular pet in the world",
-  },
-  {
-    label: "Elephant",
-    value: "elephant",
-    description: "The largest land animal",
-  },
-  { label: "Lion", value: "lion", description: "The king of the jungle" },
-  { label: "Tiger", value: "tiger", description: "The largest cat species" },
-  {
-    label: "Giraffe",
-    value: "giraffe",
-    description: "The tallest land animal",
-  },
-  {
-    label: "Dolphin",
-    value: "dolphin",
-    description: "A widely distributed and diverse group of aquatic mammals",
-  },
-  {
-    label: "Penguin",
-    value: "penguin",
-    description: "A group of aquatic flightless birds",
-  },
-  {
-    label: "Zebra",
-    value: "zebra",
-    description: "A several species of African equids",
-  },
-  {
-    label: "Shark",
-    value: "shark",
-    description:
-      "A group of elasmobranch fish characterized by a cartilaginous skeleton",
-  },
-  {
-    label: "Whale",
-    value: "whale",
-    description: "Diverse group of fully aquatic placental marine mammals",
-  },
-  {
-    label: "Otter",
-    value: "otter",
-    description: "A carnivorous mammal in the subfamily Lutrinae",
-  },
-  {
-    label: "Crocodile",
-    value: "crocodile",
-    description: "A large semiaquatic reptile",
-  },
-];
-
-const sampleTemplate = `<!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
-  <head>
-    <title></title>
-    <!--[if !mso]><!-->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!--<![endif]-->
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style type="text/css">
-      #outlook a { padding:0; }
-      body { margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%; }
-      table, td { border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt; }
-      img { border:0;height:auto;line-height:100%; outline:none;text-decoration:none;-ms-interpolation-mode:bicubic; }
-      p { display:block;margin:13px 0; }
-    </style>
-    <!--[if mso]>
-    <noscript>
-    <xml>
-    <o:OfficeDocumentSettings>
-      <o:AllowPNG/>
-      <o:PixelsPerInch>96</o:PixelsPerInch>
-    </o:OfficeDocumentSettings>
-    </xml>
-    </noscript>
-    <![endif]-->
-    <!--[if lte mso 11]>
-    <style type="text/css">
-      .mj-outlook-group-fix { width:100% !important; }
-    </style>
-    <![endif]-->
-    
-      <!--[if !mso]><!-->
-        <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">
-        <style type="text/css">
-          @import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);
-        </style>
-      <!--<![endif]-->
-
-    
-    
-    <style type="text/css">
-      @media only screen and (min-width:480px) {
-        .mj-column-per-100 { width:100% !important; max-width: 100%; }
-.mj-column-per-40 { width:40% !important; max-width: 40%; }
-.mj-column-per-60 { width:60% !important; max-width: 60%; }
-.mj-column-per-33-33333333333333 { width:33.33333333333333% !important; max-width: 33.33333333333333%; }
-.mj-column-per-50 { width:50% !important; max-width: 50%; }
-.mj-column-per-33-333333 { width:33.333333% !important; max-width: 33.333333%; }
-      }
-    </style>
-    <style media="screen and (min-width:480px)">
-      .moz-text-html .mj-column-per-100 { width:100% !important; max-width: 100%; }
-.moz-text-html .mj-column-per-40 { width:40% !important; max-width: 40%; }
-.moz-text-html .mj-column-per-60 { width:60% !important; max-width: 60%; }
-.moz-text-html .mj-column-per-33-33333333333333 { width:33.33333333333333% !important; max-width: 33.33333333333333%; }
-.moz-text-html .mj-column-per-50 { width:50% !important; max-width: 50%; }
-.moz-text-html .mj-column-per-33-333333 { width:33.333333% !important; max-width: 33.333333%; }
-    </style>
-    
-  
-    <style type="text/css">
-    
-    
-
-    @media only screen and (max-width:479px) {
-      table.mj-full-width-mobile { width: 100% !important; }
-      td.mj-full-width-mobile { width: auto !important; }
-    }
-  
-    </style>
-    <style type="text/css">
-    .hide_on_mobile { display: none !important;} 
-        @media only screen and (min-width: 480px) { .hide_on_mobile { display: block !important;} }
-        .hide_section_on_mobile { display: none !important;} 
-        @media only screen and (min-width: 480px) { 
-            .hide_section_on_mobile { 
-                display: table !important;
-            } 
-
-            div.hide_section_on_mobile { 
-                display: block !important;
-            }
-        }
-        .hide_on_desktop { display: block !important;} 
-        @media only screen and (min-width: 480px) { .hide_on_desktop { display: none !important;} }
-        .hide_section_on_desktop { 
-            display: table !important;
-            width: 100%;
-        } 
-        @media only screen and (min-width: 480px) { .hide_section_on_desktop { display: none !important;} }
-        
-          p, h1, h2, h3 {
-              margin: 0px;
-          }
-
-          ul, li, ol {
-            font-size: 11px;
-            font-family: Ubuntu, Helvetica, Arial;
-          }
-
-          a {
-              text-decoration: none;
-              color: inherit;
-          }
-
-        @media only screen and (max-width:480px) {
-            .mj-column-per-100 { width:100%!important; max-width:100%!important; }.mj-column-per-100 > .mj-column-per-100 { width:100%!important; max-width:100%!important; }.mj-column-per-40 { width:100%!important; max-width:100%!important; }.mj-column-per-100 > .mj-column-per-40 { width:40%!important; max-width:40%!important; }.mj-column-per-60 { width:100%!important; max-width:100%!important; }.mj-column-per-100 > .mj-column-per-60 { width:60%!important; max-width:60%!important; }.mj-column-per-33 { width:100%!important; max-width:100%!important; }.mj-column-per-100 > .mj-column-per-33 { width:33.33333333333333%!important; max-width:33.33333333333333%!important; }.mj-column-per-50 { width:100%!important; max-width:100%!important; }.mj-column-per-100 > .mj-column-per-50 { width:50%!important; max-width:50%!important; }.mj-column-per-33 { width:100%!important; max-width:100%!important; }.mj-column-per-100 > .mj-column-per-33 { width:33.333333%!important; max-width:33.333333%!important; }
-        }
-    </style>
-    
-  </head>
-  <body style="word-spacing:normal;background-color:#F4DDDF;">
-    
-    
-      <div style="background-color:#F4DDDF;">
-        
-      
-      <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:5px 0px 5px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="left" style="font-size:0px;padding:11px 15px 5px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: right;"><span style="color: rgb(0, 0, 0); font-size: 12px; font-family: Montserrat, sans-serif;"><a style="color: #000000;" href="*|WEBVERSION|*" target="_blank" rel="noopener">View the on-line version</a></span></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:5px 0px 5px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:middle;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:middle;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:middle;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="left" style="font-size:0px;padding:15px 0px 15px 0px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46); font-size: 24px;"><strong>LOGO</strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:0px 0px 0px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:475px;">
-              
-      <img src="https://storage.googleapis.com/monikapestova50713/Mothers%20day.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="475" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:0px 0px 9px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="left" style="font-size:0px;padding:20px 25px 20px 25px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46); font-size: 14px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh.<strong> Praesent </strong>dapibus. Aenean placerat. Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh. Praesent dapibus.<strong> Aenean placerat:</strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#f2a7ad" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#f2a7ad;background-color:#f2a7ad;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#f2a7ad;background-color:#f2a7ad;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:20px 0px 20px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:264px;" ><![endif]-->
-            
-      <div class="mj-column-per-40 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:NaNpx;vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:197px;">
-              
-      <img src="https://storage.googleapis.com/topol-io-plugin-6f3a6a1a-1247-4d57-a96f-7c9763f80764/plugin-assets/1/monikapestova/%20edited_d06c9e81-0bc9-4e23-83b0-098f4c201f9c.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="197" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:396px;" ><![endif]-->
-            
-      <div class="mj-column-per-60 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td style="font-size:0px;word-break:break-word;">
-                  
-      <div style="height:22px;line-height:22px;">&#8202;</div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="left" style="font-size:0px;padding:10px 15px 10px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><h1 style="font-family: Ubuntu, Helvetica, Arial; font-size: 22px; text-align: center;"><span style="color: rgb(255, 255, 255); font-size: 30px;">SPECIAL OFFER</span></h1></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="left" style="font-size:0px;padding:15px 15px 15px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46);"><strong><span style="font-size: 18px;">A FLOWER RIGHT IN YOUR ARMS</span></strong></span></p>
-<p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"> </p>
-<p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="font-size: 17px; color: rgb(91, 43, 46);">Only on<strong> 14.5.2023 </strong></span></p>
-<p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="font-size: 17px; color: rgb(91, 43, 46);"><strong>FREE </strong>courier service</span></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="border:0px transparent dotted;direction:ltr;font-size:0px;padding:20px 0px 20px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:219.99999999999997px;" ><![endif]-->
-            
-      <div class="mj-column-per-33-33333333333333 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:119px;">
-              
-      <img src="https://storage.googleapis.com/topol-io-plugin-6f3a6a1a-1247-4d57-a96f-7c9763f80764/plugin-assets/1/monikapestova/Untitled%20design%20edited_032f26d9-d386-49de-9a51-7fac241d6135%20edited_09c256c1-b067-425c-8b3d-ac69fa5550e6.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="119" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="left" style="font-size:0px;padding:15px 15px 15px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46);"><strong><span style="font-size: 14px;">PRODUCT  1</span></strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" style="font-size:0px;padding:10px 15px 10px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#9da3a3;"><p style="font-family: Montserrat, sans-serif; font-size: 11px;"><span style="color: rgb(91, 43, 46); font-size: 13px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh. Praesent dapibus. Aenean placerat. </span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 35px 20px 35px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
-        <tbody>
-          <tr>
-            <td align="center" bgcolor="#EE8A92" role="presentation" style="border:none;border-radius:18px;cursor:auto;mso-padding-alt:9px 26px 9px 26px;background:#EE8A92;" valign="middle">
-              <a href="https://google.com" style="display: inline-block; background: #EE8A92; color: #ffffff; font-family: Montserrat, sans-serif; font-size: 14px; font-weight: normal; line-height: 17.5px; margin: 0; text-decoration: none; text-transform: none; padding: 9px 26px 9px 26px; mso-padding-alt: 0px; border-radius: 18px;" target="_blank">
-                <span><span style="font-size: 14px;">Buy</span></span>
-              </a>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:219.99999999999997px;" ><![endif]-->
-            
-      <div class="mj-column-per-33-33333333333333 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:119px;">
-              
-      <img src="https://storage.googleapis.com/topol-io-plugin-6f3a6a1a-1247-4d57-a96f-7c9763f80764/plugin-assets/1/monikapestova/Untitled%20design%20edited_032f26d9-d386-49de-9a51-7fac241d6135%20edited_09c256c1-b067-425c-8b3d-ac69fa5550e6.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="119" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="left" style="font-size:0px;padding:15px 15px 15px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46);"><strong><span style="font-size: 14px;">PRODUCT  2</span></strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" style="font-size:0px;padding:10px 15px 10px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#9da3a3;"><p style="font-family: Montserrat, sans-serif; font-size: 11px;"><span style="color: rgb(91, 43, 46); font-size: 13px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh. Praesent dapibus. Aenean placerat. </span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 35px 20px 35px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
-        <tbody>
-          <tr>
-            <td align="center" bgcolor="#EE8A92" role="presentation" style="border:none;border-radius:24px;cursor:auto;mso-padding-alt:9px 26px 9px 26px;background:#EE8A92;" valign="middle">
-              <a href="https://google.com" style="display: inline-block; background: #EE8A92; color: #ffffff; font-family: Montserrat, sans-serif; font-size: 14px; font-weight: normal; line-height: 17.5px; margin: 0; text-decoration: none; text-transform: none; padding: 9px 26px 9px 26px; mso-padding-alt: 0px; border-radius: 24px;" target="_blank">
-                <span><span style="font-size: 14px;">Buy</span></span>
-              </a>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:219.99999999999997px;" ><![endif]-->
-            
-      <div class="mj-column-per-33-33333333333333 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:119px;">
-              
-      <img src="https://storage.googleapis.com/topol-io-plugin-6f3a6a1a-1247-4d57-a96f-7c9763f80764/plugin-assets/1/monikapestova/Untitled%20design%20edited_032f26d9-d386-49de-9a51-7fac241d6135%20edited_09c256c1-b067-425c-8b3d-ac69fa5550e6.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="119" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="left" style="font-size:0px;padding:15px 15px 15px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46);"><strong><span style="font-size: 14px;">PRODUCT  3</span></strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" style="font-size:0px;padding:10px 15px 10px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#9da3a3;"><p style="font-family: Montserrat, sans-serif; font-size: 11px;"><span style="color: rgb(91, 43, 46); font-size: 13px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh. Praesent dapibus. Aenean placerat. </span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 35px 20px 35px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
-        <tbody>
-          <tr>
-            <td align="center" bgcolor="#EE8A92" role="presentation" style="border:none;border-radius:24px;cursor:auto;mso-padding-alt:9px 26px 9px 26px;background:#EE8A92;" valign="middle">
-              <a href="https://google.com" style="display: inline-block; background: #EE8A92; color: #ffffff; font-family: Montserrat, sans-serif; font-size: 14px; font-weight: normal; line-height: 17.5px; margin: 0; text-decoration: none; text-transform: none; padding: 9px 26px 9px 26px; mso-padding-alt: 0px; border-radius: 24px;" target="_blank">
-                <span><span style="font-size: 14px;">Buy</span></span>
-              </a>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="border:0px transparent dotted;direction:ltr;font-size:0px;padding:20px 0px 20px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:330px;" ><![endif]-->
-            
-      <div class="mj-column-per-50 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td style="font-size:0px;word-break:break-word;">
-                  
-      <div style="height:18px;line-height:18px;">&#8202;</div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:183px;">
-              
-      <img src="https://storage.googleapis.com/topol-io-plugin-6f3a6a1a-1247-4d57-a96f-7c9763f80764/plugin-assets/1/monikapestova/Untitled%20design%20edited_032f26d9-d386-49de-9a51-7fac241d6135%20edited_09c256c1-b067-425c-8b3d-ac69fa5550e6.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="183" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:330px;" ><![endif]-->
-            
-      <div class="mj-column-per-50 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="left" style="font-size:0px;padding:15px 35px 15px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46);"><strong><span style="font-size: 14px;">PRODUCT  4</span></strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" style="font-size:0px;padding:10px 35px 10px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#9da3a3;"><p style="font-family: Montserrat, sans-serif; font-size: 11px;"><span style="color: rgb(91, 43, 46); font-size: 13px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh. Praesent dapibus. Aenean placerat. </span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" vertical-align="middle" style="font-size:0px;padding:10px 54px 10px 35px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
-        <tbody>
-          <tr>
-            <td align="center" bgcolor="#EE8A92" role="presentation" style="border:none;border-radius:18px;cursor:auto;mso-padding-alt:9px 26px 9px 26px;background:#EE8A92;" valign="middle">
-              <a href="https://google.com" style="display: inline-block; background: #EE8A92; color: #ffffff; font-family: Montserrat, sans-serif; font-size: 14px; font-weight: normal; line-height: 17.5px; margin: 0; text-decoration: none; text-transform: none; padding: 9px 26px 9px 26px; mso-padding-alt: 0px; border-radius: 18px;" target="_blank">
-                <span><span style="font-size: 14px;">Buy</span></span>
-              </a>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#FFFFFF" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:20px 0px 20px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="left" style="font-size:0px;padding:20px 25px 20px 25px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="color: rgb(91, 43, 46); font-size: 14px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh.<strong> Praesent </strong>dapibus. Aenean placerat. Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce nibh. Praesent dapibus.<strong> Aenean placerat:</strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-              <tr>
-                <td align="center" vertical-align="middle" style="font-size:0px;padding:0px 20px 0px 20px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
-        <tbody>
-          <tr>
-            <td align="center" bgcolor="#EE8A92" role="presentation" style="border:none;border-radius:24px;cursor:auto;mso-padding-alt:9px 26px 9px 26px;background:#EE8A92;" valign="middle">
-              <a href="https://google.com" style="display: inline-block; background: #EE8A92; color: #ffffff; font-family: Ubuntu, Helvetica, Arial, sans-serif, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: normal; line-height: 17.5px; margin: 0; text-decoration: none; text-transform: none; padding: 9px 26px 9px 26px; mso-padding-alt: 0px; border-radius: 24px;" target="_blank">
-                <span><span style="font-size: 14px;">See more products</span></span>
-              </a>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="transparent" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:transparent;background-color:transparent;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:transparent;background-color:transparent;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:0px 0px 0px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-        <tbody>
-          <tr>
-            <td style="width:660px;">
-              
-      <img src="https://storage.googleapis.com/monikapestova50713/Untitled%20design%20%283%29.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="660" height="auto">
-    
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#EE8A92" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#EE8A92;background-color:#EE8A92;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#EE8A92;background-color:#EE8A92;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:7px 0px 7px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 30px 0px 30px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#f8d5d1;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><span style="font-size: 16px;"><strong><span style="color: rgb(91, 43, 46);">YOU DON'T KNOW WHAT TO DO? CONTACT US.</span></strong></span></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#EE8A92" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#EE8A92;background-color:#EE8A92;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#EE8A92;background-color:#EE8A92;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:10px 0px 10px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:219.99999780000002px;" ><![endif]-->
-            
-      <div class="mj-column-per-33-333333 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="left" style="font-size:0px;padding:10px 15px 10px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;text-align:left;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><a href="mailto:shop@xy.cz" style="color: #5B2B2E;"><span style="color: rgb(91, 43, 46);"><strong><span style="font-size: 14px;">shop@company-xy.cz</span></strong></span></a></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:219.99999780000002px;" ><![endif]-->
-            
-      <div class="mj-column-per-33-333333 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:0px 0px 0px 0px;word-break:break-word;">
-                  
-      
-     <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" ><tr><td><![endif]-->
-              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="float:none;display:inline-table;">
-                <tbody>
-                  
-      <tr>
-        <td style="padding:4px;vertical-align:middle;">
-          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:transparent;border-radius:3px;width:31px;">
-            <tbody>
-              <tr>
-                <td style="font-size:0;height:31px;vertical-align:middle;width:31px;">
-                  <a href="https://www.facebook.com/PROFILE" target="_blank" style="color: #5B2B2E;">
-                    <img alt="facebook" height="31" src="https://s3-eu-west-1.amazonaws.com/ecomail-assets/editor/social-icos/ikony-black/outlinedblack/facebook.png" style="border-radius:3px;display:block;" width="31">
-                  </a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </td>
-        
-      </tr>
-    
-                </tbody>
-              </table>
-            <!--[if mso | IE]></td><td><![endif]-->
-              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="float:none;display:inline-table;">
-                <tbody>
-                  
-      <tr>
-        <td style="padding:4px;vertical-align:middle;">
-          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:transparent;border-radius:3px;width:31px;">
-            <tbody>
-              <tr>
-                <td style="font-size:0;height:31px;vertical-align:middle;width:31px;">
-                  <a href="https://www.instagram.com/PROFILE" target="_blank" style="color: #5B2B2E;">
-                    <img alt="instagram" height="31" src="https://s3-eu-west-1.amazonaws.com/ecomail-assets/editor/social-icos/ikony-black/outlinedblack/instagram.png" style="border-radius:3px;display:block;" width="31">
-                  </a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </td>
-        
-      </tr>
-    
-                </tbody>
-              </table>
-            <!--[if mso | IE]></td><td><![endif]-->
-              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="float:none;display:inline-table;">
-                <tbody>
-                  
-      <tr>
-        <td style="padding:4px;vertical-align:middle;">
-          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:transparent;border-radius:3px;width:31px;">
-            <tbody>
-              <tr>
-                <td style="font-size:0;height:31px;vertical-align:middle;width:31px;">
-                  <a href="youtube" target="_blank" style="color: #5B2B2E;">
-                    <img height="31" src="https://s3-eu-west-1.amazonaws.com/ecomail-assets/editor/social-icos/ikony-black/outlinedblack/youtube.png" style="border-radius:3px;display:block;" width="31">
-                  </a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </td>
-        
-      </tr>
-    
-                </tbody>
-              </table>
-            <!--[if mso | IE]></td></tr></table><![endif]-->
-    
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:219.99999780000002px;" ><![endif]-->
-            
-      <div class="mj-column-per-33-333333 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:10px 0px 10px 0px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#9da3a3;"><p style="font-family: Montserrat, sans-serif; font-size: 11px; text-align: center;"><strong><span style="color: rgb(91, 43, 46); font-size: 14px;">www.company-xy.cz</span></strong></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:660px;" width="660" bgcolor="#EE8A92" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    
-      
-      <div style="background:#EE8A92;background-color:#EE8A92;margin:0px auto;max-width:660px;">
-        
-        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#EE8A92;background-color:#EE8A92;width:100%;">
-          <tbody>
-            <tr>
-              <td style="direction:ltr;font-size:0px;padding:0px 0px 20px 0px;text-align:center;">
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:middle;width:660px;" ><![endif]-->
-            
-      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:middle;width:100%;">
-        
-      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:middle;" width="100%">
-        <tbody>
-          
-              <tr>
-                <td align="center" style="font-size:0px;padding:13px 15px 13px 15px;word-break:break-word;">
-                  
-      <div style="font-family:Montserrat, sans-serif;font-size:11px;line-height:1.5;text-align:center;color:#000000;"><p style="font-family: Montserrat, sans-serif; font-size: 11px;"><span style="font-size: 13px;">Let the recipient know why they received the email and how it ended up on your mailing list.</span></p>
-<p style="font-family: Montserrat, sans-serif; font-size: 11px;"><span style="font-size: 13px;">Don't want to receive our emails?</span> <span style="text-decoration: underline;"><a href="*|UNSUB|*" style="color: #5B2B2E;">Unsubscribe here.</a></span></p></div>
-    
-                </td>
-              </tr>
-            
-        </tbody>
-      </table>
-    
-      </div>
-    
-          <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        
-      </div>
-    
-      
-      <!--[if mso | IE]></td></tr></table><![endif]-->
-    
-    
-      </div>
-    
-  </body>
-</html>`;
+function PreviewModal({ isOpen, onOpenChange, campaign, content }) {
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      placement="auto"
+      scrollBehavior="outside"
+      backdrop="blur"
+      size="5xl"
+      isDismissable={false}
+      style={{
+        width: "80vw",
+        // height: "80vh",
+      }}
+    >
+      <ModalContent>
+        {(onClose) => (
+          <div>
+            <ModalHeader className="flex flex-col gap-1">
+              Confirm Delete
+            </ModalHeader>
+            <ModalBody>
+              <div style={{ width: "100%" }}>
+                <div className="bg-white" style={{ width: "100%" }}>
+                  <iframe
+                    id="123532"
+                    name="123532render"
+                    style={{ width: "100%", height: "80vh" }}
+                    sandbox="allow-scripts allow-same-origin"
+                    srcDoc={content}
+                  />
+                </div>
+              </div>
+            </ModalBody>
+          </div>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+}

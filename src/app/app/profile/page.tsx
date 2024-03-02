@@ -27,8 +27,6 @@ import { useRouter } from "next/navigation";
 import { Divider } from "@nextui-org/react";
 
 export default function Home() {
-  const { loggedinUser }: any = useAuth();
-  // console.log(loggedinUser);
   const raw = 3;
   const router = useRouter();
 
@@ -73,7 +71,7 @@ export default function Home() {
   const [page, setPage] = React.useState(1);
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
   return (
     <div

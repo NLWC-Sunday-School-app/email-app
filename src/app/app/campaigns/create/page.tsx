@@ -4,13 +4,13 @@ import { useAuth } from "@/context/AuthContext";
 import CustomTable from "@/components/table";
 import { TickCircleIcon } from "@/components/TickCircleIcon";
 import React, { useState, Component } from "react";
-import "md-editor-rt/lib/style.css";
-import dynamic from "next/dynamic";
-import "@uiw/react-markdown-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
+// import "md-editor-rt/lib/style.css";
+// import dynamic from "next/dynamic";
+// import "@uiw/react-markdown-editor/markdown-editor.css";
+// import "@uiw/react-markdown-preview/markdown.css";
 import "@/components/template-globals.css";
 
-import MarkdownEditor from "@uiw/react-markdown-editor";
+// import MarkdownEditor from "@uiw/react-markdown-editor";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Button,
@@ -35,7 +35,6 @@ import Link from "next/link";
 import EasyEdit from "react-easy-edit";
 
 export default function Home() {
-  const { loggedinUser }: any = useAuth();
   const [campaignName, setCampaignName] = useState("Untitled Campaign");
   const [mailSubject, setMailSubject] = useState("");
   const [fromName, setFromName] = useState("");
@@ -637,7 +636,7 @@ export default function Home() {
                     </div>
                   </Switch>
                 </div>
-                
+
                 <div
                   style={{
                     display: "flex",
@@ -742,12 +741,6 @@ export default function Home() {
                         fontSize: "14px",
                       }}
                     ></label>
-                    <MarkdownEditor
-                      value={mailContent}
-                      onChange={(value, viewUpdate) => setMailContent(value)}
-                      // width="100%"
-                      height="100%"
-                    />
                   </div>
                 )}
                 <div
@@ -947,7 +940,7 @@ export default function Home() {
   );
 }
 
- function DeleteModal({ isOpen, setIsOpen }) {
+function DeleteModal({ isOpen, setIsOpen }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
@@ -1068,7 +1061,7 @@ export default function Home() {
   );
 }
 
- const animals = [
+const animals = [
   {
     label: "Cat",
     value: "cat",
@@ -1129,7 +1122,7 @@ export default function Home() {
   },
 ];
 
- const sampleTemplate = `<!doctype html>
+const sampleTemplate = `<!doctype html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
   <head>
     <title></title>

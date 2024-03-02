@@ -1,38 +1,63 @@
+import { useAuth } from "@/context/AuthContext";
 import React from "react";
 export function useTemplatesList({ fetchDelay = 0 } = {}) {
-    const [items, setItems] = React.useState([{ name: "New Template" }]);
+    const [items, setItems] = React.useState([{ name: "New Template", uuid: "-1" }]);
     const [hasMore, setHasMore] = React.useState(true);
     const [isLoading, setIsLoading] = React.useState(false);
-    const [offset, setOffset] = React.useState(0);
+    const [page, setPage] = React.useState(1);
     const limit = 10; // Number of items per page, adjust as necessary
+    // const page = 1
+    const { accesstoken } = useAuth();
 
-    const loadPokemon = async (currentOffset) => {
+    const myHeaders = new Headers();
+    myHeaders.append("Authorization", `Bearer ${accesstoken}`);
+
+
+    const loadPokemon = async (page) => {
         const controller = new AbortController();
         const { signal } = controller;
+        const requestOptions = {
+            method: "GET",
+            headers: myHeaders,
+            redirect: "follow",
+            signal
+        };
 
         try {
             setIsLoading(true);
 
-            if (offset > 0) {
+            if (page > 1) {
                 // Delay to simulate network latency
                 await new Promise((resolve) => setTimeout(resolve, fetchDelay));
             } else {
             }
 
             let res = await fetch(
-                `https://pokeapi.co/api/v2/pokemon?offset=${currentOffset}&limit=${limit}`,
-                { signal },
+                `http://127.0.0.1:8234/api/user/template/list?page=${page}&limit=${limit}`,
+                requestOptions,
             );
+
 
             if (!res.ok) {
                 throw new Error("Network response was not ok");
             }
 
             let json = await res.json();
+            // console.log(json)
 
-            setHasMore(json.next !== null);
+            setHasMore(json?.meta?.current_page !== json?.meta?.last_page);
             // Append new results to existing ones
-            setItems((prevItems) => [...prevItems, ...json.results]);
+            // setItems((prevItems) => [...prevItems, ...json.data]);
+            setItems((prevItems) => {
+                // Extract UUIDs from prevItems
+                const existingUUIDs = prevItems.map(item => item.uuid);
+
+                // Filter json.data to exclude items with UUIDs that already exist in prevItems
+                const newData = json.data.filter(item => !existingUUIDs.includes(item.uuid));
+
+                // Concatenate prevItems with newData
+                return [...prevItems, ...newData];
+            });
 
         } catch (error) {
             if (error.name === "AbortError") {
@@ -46,14 +71,14 @@ export function useTemplatesList({ fetchDelay = 0 } = {}) {
     };
 
     React.useEffect(() => {
-        loadPokemon(offset);
+        loadPokemon(page);
     }, []);
 
     const onLoadMore = () => {
-        const newOffset = offset + limit;
+        const newPage = page + 1;
 
-        setOffset(newOffset);
-        loadPokemon(newOffset);
+        setPage(newPage);
+        loadPokemon(newPage);
     };
 
     return {

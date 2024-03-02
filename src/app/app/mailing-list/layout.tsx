@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Email Services | Sender",
-  description: "Email Services in Sender",
+  title: "Mailing List | Epistle",
+  description: "Mailing List in Epistle",
 };
 
 export default function RootLayout({

@@ -136,7 +136,16 @@ export default function Home({ params }) {
           paddingTop: "20px",
         }}
       >
-        <div></div>
+        <div>
+          <p
+            style={{
+              fontSize: "25px",
+              paddingTop: "20px",
+            }}
+          >
+            {data?.name}
+          </p>
+        </div>
 
         <div
           style={{

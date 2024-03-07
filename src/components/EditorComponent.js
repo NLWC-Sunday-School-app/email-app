@@ -1,7 +1,7 @@
 'use client'
 
-import { MDXEditor, MDXEditorMethods, headingsPlugin } from "@mdxeditor/editor"
-import { FC } from 'react'
+import { CKEditor } from "@ckeditor/ckeditor5-react"
+import Editor from "ckeditor5-custom-build"
 
 
 
@@ -9,8 +9,23 @@ import { FC } from 'react'
  * Extend this Component further with the necessary plugins or props you need.
  * proxying the ref is necessary. Next.js dynamically imported components don't support refs. 
 */
-const Editor = ({ markdown, editorRef }) => {
-    return <MDXEditor ref={editorRef} markdown={markdown} plugins={[headingsPlugin()]} />
+const CustomEditor = ({ data, setData, editorRef = null }) => {
+    return <CKEditor
+        editor={Editor}
+        data={data}
+        onReady={(editor) => {
+            if (editorRef) {
+                editorRef.current = editor
+            }
+        }}
+        onChange={(event, editor) => {
+            setData(editor.getData());
+        }}
+        onBlur={(event, editor) => {
+        }}
+        onFocus={(event, editor) => {
+        }}
+    />
 }
 
-export default Editor
+export default CustomEditor

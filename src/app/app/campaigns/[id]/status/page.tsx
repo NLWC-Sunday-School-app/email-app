@@ -7,29 +7,19 @@ import React from "react";
 import { columns, users, statusOptions } from "../../../../../components/data";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useViewOneCampaign } from "@/services/CampaignServices";
 
-export default function Home() {
+export default function Home({ params }) {
   const { loggedinUser }: any = useAuth();
   console.log(loggedinUser);
 
-  const pathname = usePathname();
-
-  const tableHeaders = ["name", "service", "actions"];
-
-  const columns = [
-    // { name: "ID", uid: "id" },
-    { name: "NAME", uid: "name" },
-    { name: "SERVICE", uid: "service" },
-    { name: "ACTIONS", uid: "actions" },
-  ];
-
-  const [page, setPage] = React.useState(1);
-  const [pages, setPages] = React.useState(10);
-  const [searchText, setSearchText] = React.useState("");
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const { data, isError } = useViewOneCampaign({ uuid: params.id });
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
+      <p style={{ paddingLeft: "15px", fontSize: "25px", paddingTop: "20px" }}>
+        {data?.name}
+      </p>
       <div
         style={{
           display: "flex",

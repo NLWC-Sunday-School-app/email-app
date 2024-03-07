@@ -2,6 +2,8 @@
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import CustomTable from "@/components/table";
+// import CustomEditor from "@/components/EditorComponent";
+
 import { TickCircleIcon } from "@/components/TickCircleIcon";
 import React, { useState, Component, useEffect, Suspense, useRef } from "react";
 // import "md-editor-rt/lib/style.css";
@@ -9,6 +11,8 @@ import React, { useState, Component, useEffect, Suspense, useRef } from "react";
 // import "@uiw/react-markdown-editor/markdown-editor.css";
 // import "@uiw/react-markdown-preview/markdown.css";
 import "@/components/template-globals.css";
+
+import { CKEditor } from "@ckeditor/ckeditor5-react";
 
 // import MarkdownEditor from "@uiw/react-markdown-editor";
 import { redirect, usePathname, useRouter } from "next/navigation";
@@ -51,6 +55,14 @@ import { useAsyncList } from "@react-stately/data";
 import { Chip } from "@nextui-org/react";
 import dayjs from "dayjs";
 import debounce from "lodash.debounce";
+import dynamic from "next/dynamic";
+
+const CustomEditor = dynamic(
+  () => {
+    return import("@/components/EditorComponent");
+  },
+  { ssr: false }
+);
 
 export default function Home({ params }) {
   const [campaignName, setCampaignName] = useState("Untitled Campaign");
@@ -1061,8 +1073,13 @@ export default function Home({ params }) {
                     }}
                   ></label>
                   <div style={{ overflow: "scroll" }}>
-                    {/* <Suspense fallback={null}>
-                      <CKEditor5
+                    <Suspense fallback={null}>
+                      <CustomEditor
+                        editorRef={editorRef}
+                        data={mailContent}
+                        setData={setMailContent}
+                      />
+                      {/* <CKEditor
                         ref={editorRef}
                         editor={Editor}
                         data={mailContent}
@@ -1082,8 +1099,8 @@ export default function Home({ params }) {
                         onFocus={(event, editor) => {
                           // console.log("Focus.", editor);
                         }}
-                      />
-                    </Suspense> */}
+                      /> */}
+                    </Suspense>
                   </div>
                 </div>
                 {/* <div

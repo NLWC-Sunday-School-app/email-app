@@ -25,6 +25,8 @@ import {
 import { VerticalDotsIcon } from "@/components/VerticalDotsIcon";
 import { useRouter } from "next/navigation";
 import { Divider } from "@nextui-org/react";
+import { useGetAuthenticatedUser } from "@/services/AuthServices";
+import { useAxios } from "@/context/AxiosContext";
 
 export default function Home() {
   const raw = 3;
@@ -72,6 +74,15 @@ export default function Home() {
   const [pages, setPages] = React.useState(10);
   const [searchText, setSearchText] = React.useState("");
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  const { loggedinUser }: any = useAuth();
+  // console.log("loggedinUser", loggedinUser);
+
+  if (loggedinUser) {
+  }
+
+  const { user, mutate } = useGetAuthenticatedUser();
+  // console.log("user", user);
 
   return (
     <div
@@ -160,7 +171,7 @@ export default function Home() {
           <label
             style={{ display: "flex", gap: "5px", fontSize: "14px", flex: 2 }}
           >
-            Folakunmi
+            {user?.first_name}
           </label>
         </div>
         <Divider orientation="horizontal" />
@@ -186,7 +197,7 @@ export default function Home() {
           <label
             style={{ display: "flex", gap: "5px", fontSize: "14px", flex: 2 }}
           >
-            Aremu
+            {user?.last_name}
           </label>
         </div>
         <Divider orientation="horizontal" />
@@ -212,7 +223,7 @@ export default function Home() {
           <label
             style={{ display: "flex", gap: "5px", fontSize: "14px", flex: 2 }}
           >
-            fola.aremu@gmail.com
+            {user?.email}
           </label>
         </div>
         <div
@@ -241,11 +252,20 @@ export default function Home() {
           </Button>
         </div>
       </div>
-      <EditModal isOpen={isOpenEdit} setIsOpen={setIsOpenEdit} />
-      <ChangePasswordModal
-        isOpen={isOpenChangePassword}
-        setIsOpen={setIsOpenChangePassword}
-      />
+      {isOpenEdit && (
+        <EditModal
+          isOpen={isOpenEdit}
+          setIsOpen={setIsOpenEdit}
+          mutate={mutate}
+          data={user}
+        />
+      )}
+      {isOpenChangePassword && (
+        <ChangePasswordModal
+          isOpen={isOpenChangePassword}
+          setIsOpen={setIsOpenChangePassword}
+        />
+      )}
     </div>
   );
 }
@@ -257,6 +277,7 @@ function ChangePasswordModal({ isOpen, setIsOpen }) {
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmNewPassword, setConfirmNewPassword] = React.useState("");
+  const { publicAxios }: any = useAxios();
 
   const isConfirmNewPasswordInvalid = React.useMemo(() => {
     if (!confirmNewPassword) return false;
@@ -276,10 +297,16 @@ function ChangePasswordModal({ isOpen, setIsOpen }) {
 
   const submitModal = () => {
     console.log("submitModal");
-    setConfirmNewPassword("");
-    setCurrentPassword("");
-    setNewPassword("");
-    setIsOpen(false);
+    publicAxios
+      .post(`/user/password/change`, {
+        current_password: currentPassword,
+        password: newPassword,
+        password_confirmation: confirmNewPassword,
+      })
+      .then((res) => {
+        setIsOpen(false);
+      })
+      .catch((err) => {});
   };
   return (
     <Modal
@@ -400,13 +427,14 @@ function ChangePasswordModal({ isOpen, setIsOpen }) {
   );
 }
 
-function EditModal({ isOpen, setIsOpen }) {
+function EditModal({ isOpen, setIsOpen, mutate, data }) {
   const validateEmail = (value) =>
     value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
 
-  const [firstName, setFirstName] = React.useState("");
-  const [lastName, setLastName] = React.useState("");
-  const [email, setEmail] = React.useState("");
+  const [firstName, setFirstName] = React.useState(data?.first_name || "");
+  const [lastName, setLastName] = React.useState(data?.last_name || "");
+  const [email, setEmail] = React.useState(data?.email || "");
+  const { publicAxios }: any = useAxios();
 
   const isEmailInvalid = React.useMemo(() => {
     if (!email) return false;
@@ -419,11 +447,13 @@ function EditModal({ isOpen, setIsOpen }) {
   }, [firstName, lastName, email]);
 
   const submitModal = () => {
-    console.log("submitModal");
-    setEmail("");
-    setFirstName("");
-    setLastName("");
+    publicAxios.post(`/user/user/${data?.uuid}/edit`, {
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+    });
     setIsOpen(false);
+    mutate();
   };
   return (
     <Modal
@@ -507,8 +537,9 @@ function EditModal({ isOpen, setIsOpen }) {
                   onChange={(e) => {
                     setEmail(e.target.value);
                   }}
-                  isInvalid={isEmailInvalid}
-                  errorMessage="Please enter a valid email"
+                  disabled
+                  // isInvalid={isEmailInvalid}
+                  // errorMessage="Please enter a valid email"
                 />
               </div>
             </ModalBody>

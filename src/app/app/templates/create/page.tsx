@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@nextui-org/react";
 
@@ -8,20 +8,35 @@ import EasyEdit from "react-easy-edit";
 import dynamic from "next/dynamic";
 
 import Editor from "ckeditor5-custom-build";
+import { CKEditor } from "@ckeditor/ckeditor5-react";
+// import {classicEditor}
 import { useAxios } from "@/context/AxiosContext";
+// import CustomEditor from "@/components/EditorComponent";
+
+const CustomEditor = dynamic(
+  () => {
+    return import("@/components/EditorComponent");
+  },
+  { ssr: false }
+);
+
+// const CKEditor = dynamic(() => import("@ckeditor/ckeditor5-react"), {
+//   ssr: false,
+// });
 
 export default function Home() {
+  // classicEd
   const [richText, setRichText] = useState("Edit your new template here...");
   const [name, setName] = useState("Untitled Template");
   const { publicAxios }: any = useAxios();
   const [viewEditor, setViewEditor] = useState(false);
 
   const router = useRouter();
-  // useEffect(() => {
-  //   setTimeout(() => {
-  //     setViewEditor(true);
-  //   }, 3000);
-  // }, []);
+  useEffect(() => {
+    setTimeout(() => {
+      setViewEditor(true);
+    }, 3000);
+  }, []);
 
   return (
     <div
@@ -164,24 +179,27 @@ export default function Home() {
                 }}
               />
             )} */}
-            {/* <CKEditor5
-              editor={Editor}
-              data={richText}
-              onReady={(editor) => {
-                // You can store the "editor" and use when it is needed.
-                // console.log("Editor is ready to use!", editor);
-              }}
-              onChange={(event, editor) => {
-                setRichText(editor.getData());
-                // console.log("change", editor.getData());
-              }}
-              onBlur={(event, editor) => {
-                // console.log("Blur.", editor);
-              }}
-              onFocus={(event, editor) => {
-                // console.log("Focus.", editor);
-              }}
-            /> */}
+            <CustomEditor data={richText} setData={setRichText} />
+            {/* {viewEditor && (
+              <CKEditor
+                editor={Editor}
+                data={richText}
+                onReady={(editor) => {
+                  // You can store the "editor" and use when it is needed.
+                  // console.log("Editor is ready to use!", editor);
+                }}
+                onChange={(event, editor) => {
+                  setRichText(editor.getData());
+                  // console.log("change", editor.getData());
+                }}
+                onBlur={(event, editor) => {
+                  // console.log("Blur.", editor);
+                }}
+                onFocus={(event, editor) => {
+                  // console.log("Focus.", editor);
+                }}
+              />
+            )} */}
           </div>
         </div>
         {/* <div

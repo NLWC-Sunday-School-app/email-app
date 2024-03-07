@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 // import MarkdownEditor from "@uiw/react-markdown-editor";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Checkbox, Input, Select, SelectItem } from "@nextui-org/react";
-// import { MDXEditor, headingsPlugin } from "@mdxeditor/editor";
+import { CKEditor } from "@ckeditor/ckeditor5-react";
 
 import { Suspense } from "react";
 import EasyEdit from "react-easy-edit";
@@ -20,6 +20,13 @@ import { Switch } from "@nextui-org/react";
 import Editor from "ckeditor5-custom-build";
 import { useFetchSingleTemplate } from "@/services/TemplateServices";
 import { useAxios } from "@/context/AxiosContext";
+// import CustomEditor from "@/components/EditorComponent";
+const CustomEditor = dynamic(
+  () => {
+    return import("@/components/EditorComponent");
+  },
+  { ssr: false }
+);
 
 const mdStr = ``;
 
@@ -155,8 +162,9 @@ export default function Home({ params }) {
               boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
             }}
           >
+            <CustomEditor data={richText} setData={setRichText} />
             {/* <Suspense fallback={null}>
-              <CKEditor5
+              <CKEditor
                 editor={Editor}
                 data={richText}
                 onReady={(editor) => {
@@ -218,4 +226,3 @@ export default function Home({ params }) {
     </div>
   );
 }
-

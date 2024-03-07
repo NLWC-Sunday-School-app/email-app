@@ -15,3 +15,14 @@ export function useFetchCampaigns({ search = '', status = 'QUEUED', page_size = 
         mutate
     }
 }
+export function useGetAuthenticatedUser() {
+    const { data, error, isLoading, mutate } = useSWR(`/user/profile`)
+
+    const user = data?.data
+    return {
+        user,
+        isLoading,
+        isError: error,
+        mutate
+    }
+}

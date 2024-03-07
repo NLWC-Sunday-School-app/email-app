@@ -28,18 +28,22 @@ export default function Home({ params }) {
 
   const [selected, setSelected] = React.useState("overview");
 
+  const { data, isError } = useViewOneCampaign({ uuid: params.id });
+
   const pathname = usePathname();
 
 
 
   return (
-    <div className="flex flex-wrap gap-4" style={{}}>
+    <div className="flex flex-wrap gap-4 flex-col" style={{}}>
+      <p style={{ paddingLeft: '15px', fontSize: "25px", paddingTop: '20px' }}>{data?.name}</p>
       <Tabs
         // key={"underlined"}
         variant={"underlined"}
         aria-label="Tabs variants"
         selectedKey={selected}
         onSelectionChange={setSelected}
+        title="Helloss"
 
       >
 
@@ -137,7 +141,6 @@ const Overview = ({ setSelected, params }) => {
     uuid: params.id,
     type: 'overview'
   });
-  // console.log(data?.campaignStats)
 
   useEffect(() => {
     if (data) {

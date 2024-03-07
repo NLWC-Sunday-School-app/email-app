@@ -9,9 +9,11 @@ import Link from 'next/link';
 import nProgress from 'nprogress';
 import { useRouter } from 'next/navigation';
 import { Router } from 'next/router';
+import { useAuth } from '@/context/AuthContext';
 // import NextProgress from "next-progress";
 
 export default function TopNav() {
+    const { loggedinUser } = useAuth()
     const pathname = usePathname();
     const [name, setName] = useState('');
 
@@ -99,7 +101,7 @@ export default function TopNav() {
             <h2 style={{ fontSize: "25px", color: '#555' }}>{name}</h2>
             <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', alignItems: 'center' }}>
                 <RxAvatar />
-                <p style={{ paddingLeft: '10px' }}>Fola</p>
+                <p style={{ paddingLeft: '10px' }}>{loggedinUser?.first_name}</p>
                 <Dropdown >
                     <DropdownTrigger>
                         <Button isIconOnly={false} radius="full" size="sm" variant="light">

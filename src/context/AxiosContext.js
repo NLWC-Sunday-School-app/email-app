@@ -89,7 +89,7 @@ export const AxiosProvider = ({ children }) => {
                 publicAxios
             }
             }>
-            <SWRConfig value={{ fetcher: publicAxios.get }}>
+            <SWRConfig value={{ fetcher: publicAxios.get, revalidateOnFocus: false, revalidateOnMount: false }}>
 
                 {children}
             </SWRConfig>

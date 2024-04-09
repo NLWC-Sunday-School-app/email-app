@@ -210,6 +210,7 @@ class Editor extends ClassicEditor {
         "imageStyle:block",
         "imageStyle:side",
         "linkImage",
+        "resizeImage"
       ],
       resizeOptions: [
         {

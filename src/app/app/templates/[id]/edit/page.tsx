@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import CustomTable from "@/components/table";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 // import "md-editor-rt/lib/style.css";
 // import "@uiw/react-markdown-editor/markdown-editor.css";
@@ -23,7 +23,7 @@ import { useAxios } from "@/context/AxiosContext";
 // import CustomEditor from "@/components/EditorComponent";
 const CustomEditor = dynamic(
   () => {
-    return import("@/components/EditorComponent");
+    return import("@/components/EmailEditorComponent");
   },
   { ssr: false }
 );
@@ -32,6 +32,7 @@ const mdStr = ``;
 
 export default function Home({ params }) {
   const [richText, setRichText] = useState("");
+  const [richDesign, setRichDesign] = useState("");
   const [markdown, setMarkdown] = useState("");
   const [text, setText] = useState("# Hello Editor");
   const [name, setName] = useState("Untitled Template");
@@ -46,8 +47,11 @@ export default function Home({ params }) {
     if (data) {
       setName(data.name);
       setRichText(data.content);
+      setRichDesign(data?.design);
     }
   }, [data]);
+
+  const emailEditorRef = useRef(null);
 
   return (
     <div
@@ -107,6 +111,7 @@ export default function Home({ params }) {
                   {
                     name,
                     content: richText,
+                    design: richDesign,
                   }
                 );
                 router.push("/app/templates");
@@ -162,7 +167,7 @@ export default function Home({ params }) {
               boxShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)",
             }}
           >
-            <CustomEditor data={richText} setData={setRichText} />
+            <CustomEditor data={richText} setData={setRichText} setDesign={setRichDesign} design={richDesign} editorRef={emailEditorRef} />
             {/* <Suspense fallback={null}>
               <CKEditor
                 editor={Editor}

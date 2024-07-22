@@ -59,7 +59,7 @@ import dynamic from "next/dynamic";
 
 const CustomEditor = dynamic(
   () => {
-    return import("@/components/EditorComponent");
+    return import("@/components/EmailEditorComponent");
   },
   { ssr: false }
 );
@@ -76,6 +76,7 @@ export default function Home({ params }) {
   const [trackOpens, setTrackOpens] = useState(false);
   const [trackClicks, setTrackClicks] = useState(false);
   const [mailContent, setMailContent] = useState("");
+  const [design, setDesign] = useState("");
   const [sendTime, setSendTime] = React.useState("send-now");
   const [sendLaterTime, setSendLaterTime] = React.useState(
     dayjs("+5 minutes").format("YYYY-MM-DD HH:mm:ss")
@@ -102,6 +103,7 @@ export default function Home({ params }) {
     setTrackOpens(false);
     setTrackClicks(false);
     setMailContent("");
+    setDesign("");
   };
 
   const isTemplate = React.useMemo(() => {
@@ -230,6 +232,7 @@ export default function Home({ params }) {
       setTrackOpens(data?.is_open_tracking);
       setTrackClicks(data?.is_click_tracking);
       setMailContent(data?.content ?? data?.template?.content);
+      setDesign(data?.design ?? data?.template?.design);
       if (data?.template_uuid && data?.template != null) {
         // setSelectedTemplateName(data?.template?.name);
       }
@@ -249,6 +252,7 @@ export default function Home({ params }) {
       from_email: fromEmail,
       subject: mailSubject,
       content: mailContent,
+      design: design,
       is_open_tracking: trackOpens,
       status: "DRAFT",
       is_click_tracking: trackClicks,
@@ -1078,6 +1082,8 @@ export default function Home({ params }) {
                         editorRef={editorRef}
                         data={mailContent}
                         setData={setMailContent}
+                        design={design}
+                        setDesign={setDesign}
                       />
                       {/* <CKEditor
                         ref={editorRef}

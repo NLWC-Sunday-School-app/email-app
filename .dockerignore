@@ -1,0 +1,19 @@
+# See https://docs.docker.com/engine/reference/builder/#dockerignore-file
+
+# dependencies
+node_modules
+#
+# local development
+.idea
+.next
+.swc
+*.tsbuildinfo
+next-env.d.ts
+
+# git
+.git
+.gitignore
+
+# misc
+npm-debug.log
+README.md

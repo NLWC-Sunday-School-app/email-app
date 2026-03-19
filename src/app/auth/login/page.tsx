@@ -61,7 +61,7 @@ export default function Home() {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const validateEmail = (value) =>
-    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+.[A-Z]{2,4}$/i);
+    value.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i);
 
   const isEmailInvalid = React.useMemo(() => {
     if (!email) return false;

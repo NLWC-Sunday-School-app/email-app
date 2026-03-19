@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Montserrat, Nunito } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 // import "./globals.css";
 import "@/components/nprogress.css";
 import { AuthContextProvider } from "../context/AuthContext";
@@ -7,8 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer, toast } from "react-toastify";
 import { AxiosProvider } from "@/context/AxiosContext";
 
-// const inter = Montserrat({ subsets: ["latin"] });
-const inter = Nunito({ subsets: ["latin"] });
+const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -27,7 +26,7 @@ export default function RootLayout({
       <AxiosProvider>
         {/* <SWRConfig> */}
           <html lang="en">
-            <body className={inter.className}>
+            <body className={plusJakartaSans.className}>
               <ToastContainer />
               {children}
             </body>

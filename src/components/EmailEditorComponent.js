@@ -1,92 +1,141 @@
 'use client'
 
-import React, {useEffect, useRef, useState} from 'react';
-
-import EmailEditor, { EditorRef, EmailEditorProps } from 'react-email-editor';
-
-
+import React, { useRef, useEffect, useState } from 'react';
+import EmailEditor from 'react-email-editor';
 
 /**
- * Extend this Component further with the necessary plugins or props you need.
- * proxying the ref is necessary. Next.js dynamically imported components don't support refs. 
-*/
-const CustomEditor = ({ data, setData, design = null, setDesign = null, editorRef = null, onBlur = null }) => {
-    // return <CKEditor
-    //     editor={Editor}
-    //     data={data}
-    //     onReady={(editor) => {
-    //         if (editorRef) {
-    //             editorRef.current = editor
-    //         }
-    //     }}
-    //     onChange={(event, editor) => {
-    //         setData(editor.getData());
-    //     }}
-    //     onBlur={(event, editor) => {
-    //     }}
-    //     onFocus={(event, editor) => {
-    //     }}
-    // />
+ * Optimized Unlayer Email Editor.
+ * Perfected for Figma-to-Email workflows and backward compatibility.
+ * Always import with dynamic(..., { ssr: false }).
+ */
+const CustomEmailEditor = ({ 
+    data, 
+    setData, 
+    design = null, 
+    setDesign = null, 
+    editorRef = null, 
+    onBlur = null 
+}) => {
+    const internalRef = useRef(null);
+    const activeRef = editorRef || internalRef;
+    const [isLoaded, setIsLoaded] = useState(false);
 
-    // const emailEditorRef = useRef(null);
-    const [loaded, setLoaded] = useState(false);
-    const unlayer = editorRef?.current?.editor;
-
-    useEffect(() => {
-        if (design && unlayer && !loaded) {
-            console.log('editing')
-            setLoaded(true);
-            unlayer.loadDesign(design);
+    // Helper to safely parse design data
+    const parseDesign = (d) => {
+        if (!d) return null;
+        if (typeof d === 'object') return d;
+        try {
+            return JSON.parse(d);
+        } catch (e) {
+            console.warn("Invalid design JSON:", e);
+            return null;
         }
-    }, [design, unlayer,loaded]);
+    };
 
+    const onReady = (unlayer) => {
+        console.log('Unlayer Editor Ready');
+        
+        // Load initial design or fallback to HTML-in-JSON
+        const initialDesign = parseDesign(design);
+        
+        if (initialDesign) {
+            unlayer.loadDesign(initialDesign);
+        } else if (data && data.trim().length > 0) {
+            // Backward Compatibility: If no design exists but HTML does,
+            // wrap the HTML in an Unlayer 'html' block so it's not lost.
+            unlayer.loadDesign({
+                body: {
+                    rows: [{
+                        cells: [1],
+                        columns: [{
+                            contents: [{
+                                type: 'html',
+                                values: { 
+                                    html: data,
+                                    containerPadding: '10px',
+                                    anchor: ''
+                                }
+                            }]
+                        }]
+                    }]
+                }
+            });
+        }
 
-    // console.log(data)
-    const onReady = (unlayer, data) => {
-        const debounce = (func, delay) => {
-            console.log(delay)
-            let timeoutId;
-            return (...args) => {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                    func.apply(this, args);
-                }, delay);
-            };
-        };
-
-        const debouncedExport = debounce((data) => {
-            unlayer.exportHtml((data) => {
-                const { design, html } = data;
+        // Set up autosave/change tracking
+        unlayer.addEventListener('design:updated', () => {
+            unlayer.exportHtml((result) => {
+                const { design: updatedDesign, html } = result;
                 setData(html);
                 if (setDesign) {
-                    setDesign(design);
+                    setDesign(JSON.stringify(updatedDesign));
                 }
-                console.log('exportHtmllll', data);
             });
-        }, 300);
-
-        unlayer.addEventListener('design:updated', function (data) {
-            debouncedExport(data);
         });
 
         if (onBlur) {
-            unlayer.addEventListener('blur', ()=>{
-                console.log('just blurred')
-            });
+            unlayer.addEventListener('blur', onBlur);
         }
+        
+        setIsLoaded(true);
     };
-    return (
-        <EmailEditor ref={editorRef} onReady={onReady} options={{
-            appearance: {
-                theme: 'modern_light'
-            },
-            tools: {
-                form: {
-                    enabled: false
-                }
-            }
-        }} />
-    );
-}
 
-export default CustomEditor
+    // Handle template switching (external design changes)
+    useEffect(() => {
+        const unlayer = activeRef.current?.editor;
+        if (unlayer && isLoaded && design) {
+            const newDesign = parseDesign(design);
+            if (newDesign) {
+                unlayer.loadDesign(newDesign);
+            }
+        }
+    }, [design, isLoaded, activeRef]);
+
+    return (
+        <div className="unlayer-perfect-wrapper" style={{ height: 'calc(100vh - 250px)', minHeight: '700px', width: '100%' }}>
+            <EmailEditor 
+                ref={activeRef} 
+                onReady={onReady} 
+                options={{
+                    appearance: {
+                        theme: 'modern_light',
+                        panels: {
+                            tools: {
+                                dock: 'left'
+                            }
+                        }
+                    },
+                    features: {
+                        textEditor: {
+                            spellChecker: true,
+                            tables: true
+                        }
+                    },
+                    tools: {
+                        form: { enabled: false }
+                    },
+                    customCSS: [
+                        `
+                        .blockbuilder-placeholder { border: 2px dashed #4F46E5 !important; }
+                        .blockbuilder-layer-selector { background: #4F46E5 !important; }
+                        `
+                    ]
+                }} 
+            />
+            <style jsx global>{`
+                .unlayer-perfect-wrapper {
+                    border-radius: 12px;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                }
+                /* Ensure the editor fills the space */
+                #unlayer-editor-1 {
+                    height: 100% !important;
+                }
+            `}</style>
+        </div>
+    );
+};
+
+export default CustomEmailEditor;

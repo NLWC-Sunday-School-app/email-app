@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useAxios } from "@/context/AxiosContext";
 import useSWR from 'swr';
 
@@ -19,14 +19,35 @@ export function useFetchCampaigns({ search = '', status = 'QUEUED', page_size = 
 }
 
 export function useCreateCampaign() {
-    const { data, error, isLoading } = useSWR(`/user/campaign/create`)
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isError, setIsError] = useState(null);
+    const isCreating = useRef(false);
+    const { publicAxios } = useAxios();
 
-    const user = data?.data?.data
+    const createCampaign = useCallback(async () => {
+        if (isCreating.current || isLoading) return;
+        
+        isCreating.current = true;
+        setIsLoading(true);
+        setIsError(null);
+        try {
+            const response = await publicAxios.get('/user/campaign/create');
+            setUser(response?.data?.data);
+        } catch (error) {
+            setIsError(error?.response?.data?.message || error.message || 'An error occurred');
+        } finally {
+            setIsLoading(false);
+            isCreating.current = false;
+        }
+    }, [publicAxios, isLoading]);
+
     return {
         user,
         isLoading,
-        isError: error
-    }
+        isError,
+        createCampaign
+    };
 }
 
 export function useViewOneCampaign({ uuid }) {

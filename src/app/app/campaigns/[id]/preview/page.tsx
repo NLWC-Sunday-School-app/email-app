@@ -12,7 +12,6 @@ import React, { useState, Component, useEffect, Suspense, useRef } from "react";
 // import "@uiw/react-markdown-preview/markdown.css";
 import "@/components/template-globals.css";
 
-import { CKEditor } from "@ckeditor/ckeditor5-react";
 
 // import MarkdownEditor from "@uiw/react-markdown-editor";
 import { redirect, usePathname, useRouter } from "next/navigation";
@@ -47,8 +46,6 @@ import {
   useViewOneCampaign,
 } from "@/services/CampaignServices";
 import { useListTemplates } from "@/services/TemplateServices";
-// import { CKEditor as CKEditor5 } from "@ckeditor/ckeditor5-react";
-import Editor from "ckeditor5-custom-build";
 import AsyncSelect, { useAsync } from "react-select/async";
 import { useAxios } from "@/context/AxiosContext";
 import { useAsyncList } from "@react-stately/data";
@@ -1037,13 +1034,12 @@ export default function Home({ params }) {
                       setSelectedTemplateName(
                         selectedItem ? selectedItem.name : ""
                       );
-                      if (editorRef) {
-                        editorRef?.current.data.set(
-                          selectedItem ? selectedItem.content : "",
-                          { batchType: { isUndoable: true } }
-                        );
+                      
+                      // Update editor content and design data
+                      if (selectedItem) {
+                        setMailContent(selectedItem.content || "");
+                        setDesign(selectedItem.design || "");
                       }
-                      // setMailContent(selectedItem ? selectedItem.content : "");
                     }}
                     labelPlacement="outside"
                     radius={"sm"}
@@ -1065,7 +1061,7 @@ export default function Home({ params }) {
                     gap: "10px",
                     flex: 1,
                     width: "100%",
-                    height: "500px",
+                    height: "700px",
                     paddingTop: "20px",
                   }}
                 >
@@ -1076,8 +1072,8 @@ export default function Home({ params }) {
                       fontSize: "14px",
                     }}
                   ></label>
-                  <div style={{ overflow: "scroll" }}>
-                    <Suspense fallback={null}>
+                  <div className="w-full h-full overflow-hidden rounded-2xl soft-shadow border border-slate-100">
+                    <Suspense fallback={<div className="flex items-center justify-center h-full text-slate-400 font-medium">Loading Visual Builder...</div>}>
                       <CustomEditor
                         editorRef={editorRef}
                         data={mailContent}
@@ -1085,27 +1081,6 @@ export default function Home({ params }) {
                         design={design}
                         setDesign={setDesign}
                       />
-                      {/* <CKEditor
-                        ref={editorRef}
-                        editor={Editor}
-                        data={mailContent}
-                        onReady={(editor) => {
-                          editorRef.current = editor;
-                          // You can store the "editor" and use when it is needed.
-                          // console.log("Editor is ready to use!", editor);
-                        }}
-                        onChange={(event, editor) => {
-                          // console.log(editor);
-                          setMailContent(editor.getData());
-                          // console.log("change", editor.getData());
-                        }}
-                        onBlur={(event, editor) => {
-                          // console.log("Blur.", editor);
-                        }}
-                        onFocus={(event, editor) => {
-                          // console.log("Focus.", editor);
-                        }}
-                      /> */}
                     </Suspense>
                   </div>
                 </div>
@@ -1203,7 +1178,7 @@ export default function Home({ params }) {
                   // isInvalid={isToEmailInvalid}
                   // errorMessage={isToEmailInvalid ? "Please enter a valid email" : ""}
                 />
-                <Button
+                                <Button
                   style={{
                     borderRadius: "3px",
                     padding: "5px 10px",

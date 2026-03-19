@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useAuth } from "../../../../context/AuthContext";
 import CustomTable from "../../../../components/table";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 import { columns, users, statusOptions } from "../../../../components/data";
 import Link from "next/link";
@@ -197,7 +197,7 @@ export default function Home() {
           }}
         >
           <IoMdAdd size={15} />
-          New Campaign
+          New Campaigns
         </button>
       </div>
       <div>
@@ -223,8 +223,20 @@ export default function Home() {
 }
 
 function CreateCampaign() {
-  const { user } = useCreateCampaign();
-  console.log(user);
+  const { user, createCampaign, isLoading } = useCreateCampaign();
+  const hasCalled = useRef(false);
+  
+  useEffect(() => {
+    if (!hasCalled.current) {
+      hasCalled.current = true;
+      createCampaign();
+    }
+  }, [createCampaign]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   if (user) {
     redirect(`/app/campaigns/${user?.uuid}/preview`);
   }

@@ -216,6 +216,7 @@ function AddNewModal({ isOpen, setIsOpen }) {
                 variant="flat"
                 onPress={() => {
                   setName("");
+                  setIsOpen(false);
                 }}
               >
                 Close

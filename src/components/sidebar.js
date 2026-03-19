@@ -1,159 +1,116 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-
-import Logo from "../../public/logo-main.png";
-// import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 import { usePathname } from 'next/navigation';
-import "./globals.css";
-import { CloseCircle, HambergerMenu, Message, Home } from 'iconsax-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CloseCircle, HambergerMenu } from 'iconsax-react';
 import { IoMdMail, IoMdHome } from "react-icons/io";
 import { HiTemplate } from "react-icons/hi";
-import { CiViewList } from "react-icons/ci";
+import { CiViewList, CiUser } from "react-icons/ci";
 import { MdMiscellaneousServices } from "react-icons/md";
-import { CiUser } from "react-icons/ci";
-import { columns } from './data';
+import "./globals.css";
+
+const navLinks = [
+    { name: 'Dashboard', href: '/app/dashboard', icon: IoMdHome },
+    { name: 'Campaigns', href: '/app/campaigns/sent', icon: IoMdMail, match: '/app/campaigns/' },
+    { name: 'Templates', href: '/app/templates', icon: HiTemplate, match: '/app/templates' },
+    { name: 'Mailing List', href: '/app/mailing-list', icon: CiViewList, match: '/app/mailing-list' },
+    { name: 'Messages', href: '/app/messages', icon: IoMdMail, match: '/app/messages' },
+    { name: 'Email Services', href: '/app/email-services', icon: MdMiscellaneousServices, match: '/app/email-services' },
+    { name: 'Manage Users', href: '/app/users', icon: CiUser, match: '/app/users' },
+];
 
 export default function Sidebar() {
-    // const router = useRouter();
     const pathname = usePathname();
-    const [isHovered, setIsHovered] = useState(false);
-
     const [isSidebarHidden, setIsSidebarHidden] = useState(false);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
-            setIsSmallScreen(window.innerWidth < 768);
-            setIsSidebarHidden(isSmallScreen);
+            const small = window.innerWidth < 1024;
+            setIsSmallScreen(small);
+            if (!small) setIsSidebarHidden(false);
+            else setIsSidebarHidden(true);
         };
 
         window.addEventListener('resize', handleResize);
         handleResize();
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
-        return () => {
-            window.removeEventListener('resize', handleResize);
-        };
-    }, [isSmallScreen]);
+    const toggleSidebar = () => setIsSidebarHidden(!isSidebarHidden);
 
-    const toggleSidebar = () => {
-        setIsSidebarHidden(!isSidebarHidden);
+    const isActive = (link) => {
+        if (link.match) return pathname.startsWith(link.match);
+        return pathname === link.href;
     };
+
     return (
-        // <div
-        //     style={{
-        //         display: isSidebarHidden ? 'none' : 'flex',
-        //         position: 'fixed',
-        //         top: 0,
-        //         left: 0,
-        //         width: '200px',
-        //         height: '100%',
-        //         boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
-        //         background: '#ffffff',
-        //         zIndex: 999,
-        //     }}
-        // >
-        // </div>
-        <div style={{ display: 'flex', flexDirection: 'row-reverse' }} className=''>
-
-            <HambergerMenu
-                size="24"
-                color="#000"
-                style={{}}
-                className='hamberger absolute text-white text-4xl top-7 left-2 cursor-pointer md:hidden rounded-sm bg-slate-300'
+        <>
+            <button
                 onClick={toggleSidebar}
-            />
-
-            {!isSidebarHidden && (<div style={{
-                backgroundColor: '#1e2442',
-                display: 'flex',
-                position: isSidebarHidden ? 'fixed' : 'static',
-                flexDirection: "column",
-                width: "240px",
-                border: 0,
-                top: 0,
-                left: 0,
-                // padding: '0px 0vw',
-                height: "100vh",
-                zIndex: 999,
-                boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
-            }}
-                className='sidebar fixed top-0 bottom-0 lg:left-0 '
+                className="fixed top-6 left-4 z-[1001] lg:hidden p-2 bg-white soft-shadow rounded-xl border border-slate-100"
             >
-                <div style={{ display: "flex", justifyContent: "center", paddingTop: "30px", position: "relative" }}>
+                <HambergerMenu size="24" className="text-slate-600" />
+            </button>
 
-                    <CloseCircle
-                        size="24"
-                        color="#fff"
-                        style={{ top: 10, left: 210 }}
-                        className='text-white text-4xl top-5 left-4 cursor-pointer md:hidden absolute '
-                        onClick={toggleSidebar}
-                    />
-                </div>
-                <div style={{ display: "flex", justifyContent: "end", paddingTop: "30px", flexDirection: 'column', color: "white", alignItems: 'center', fontSize: '14px', gap: '2px', }}>
-                    <Link className={pathname == "/app/dashboard" ? "nav-item active" : "nav-item"} href="/app/dashboard"
+            <AnimatePresence mode="wait">
+                {(!isSidebarHidden || !isSmallScreen) && (
+                    <motion.aside
+                        initial={isSmallScreen ? { x: -300 } : { x: 0 }}
+                        animate={{ x: 0 }}
+                        exit={{ x: -300 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed inset-y-0 left-0 z-[1000] w-64 bg-[#1e2442] p-6 flex flex-col h-screen lg:static lg:translate-x-0"
                     >
-                        <div className='nav-item-data' style={{}}>
-                            <IoMdHome size={20} />
-                            <p style={{}}>Dashboard</p>
+                        <div className="flex items-center justify-between mb-10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center soft-shadow">
+                                    <span className="text-white font-bold text-xl">E</span>
+                                </div>
+                                <h1 className="text-white font-bold text-xl tracking-tight">Epistle</h1>
+                            </div>
+                            <button onClick={toggleSidebar} className="lg:hidden text-slate-400 hover:text-white transition-colors">
+                                <CloseCircle size="24" />
+                            </button>
                         </div>
-                    </Link>
-                    <Link className={pathname.startsWith("/app/campaigns/") ? "nav-item active" : "nav-item"} href="/app/campaigns/sent"
-                    >
-                        <div className='nav-item-data' style={{}}>
-                            <IoMdMail size={20} />
-                            <p style={{}}>Campaigns</p>
-                        </div>
-                    </Link>
-                    <Link className={pathname.startsWith("/app/templates") ? "nav-item active" : "nav-item"} href="/app/templates"
-                    >
-                        <div className='nav-item-data' style={{}}>
-                            <HiTemplate size={20} />
-                            <p style={{}}>Templates</p>
-                        </div>
-                    </Link>
-                    <Link className={pathname.startsWith("/app/mailing-list") ? "nav-item active" : "nav-item"} href="/app/mailing-list"
-                    >
-                        <div className='nav-item-data' style={{}}>
-                            <CiViewList size={20} />
-                            <p style={{}}>Mailing List</p>
-                        </div>
-                    </Link>
-                    <Link className={pathname.startsWith("/app/messages") ? "nav-item active" : "nav-item"} href="/app/messages"
-                    >
-                        <div className='nav-item-data' style={{}}>
-                            <IoMdMail size={20} />
-                            <p style={{}}>Messages</p>
-                        </div>
-                    </Link>
-                    <Link className={pathname.startsWith("/app/email-services") ? "nav-item active" : "nav-item"} href="/app/email-services"
-                    >
-                        <div className='nav-item-data' style={{}}>
-                            <MdMiscellaneousServices size={20} />
-                            <p style={{}}>Email Services</p>
-                        </div>
-                    </Link>
-                    <Link className={pathname.startsWith("/app/users") ? "nav-item active" : "nav-item"} href="/app/users"
-                    >
-                        <div className='nav-item-data' style={{}}>
-                            <CiUser size={20} />
-                            <p style={{}}>Manage Users</p>
-                        </div>
-                    </Link>
-                </div>
 
+                        <nav className="flex-1 flex flex-col gap-2">
+                            {navLinks.map((link) => {
+                                const active = isActive(link);
+                                const Icon = link.icon;
+                                return (
+                                    <Link
+                                        key={link.name}
+                                        href={link.href}
+                                        className={`nav-item ${active ? 'active' : ''}`}
+                                    >
+                                        <Icon size={20} className={active ? 'text-white' : 'text-slate-400'} />
+                                        <span className="font-medium">{link.name}</span>
+                                        {active && (
+                                            <motion.div
+                                                layoutId="active-pill"
+                                                className="absolute right-0 w-1.5 h-6 bg-white rounded-l-full"
+                                                transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
+                                            />
+                                        )}
+                                    </Link>
+                                );
+                            })}
+                        </nav>
 
-            </div>
-            )}
-
-        </div>
-    )
+                        <div className="mt-auto pt-6 border-t border-white/10">
+                            <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                                <p className="text-xs text-slate-400 font-medium mb-1">PRO PLAN</p>
+                                <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                                    <div className="bg-indigo-500 h-full w-3/4 rounded-full" />
+                                </div>
+                                <p className="text-xs text-slate-300 mt-2">7,500 / 10,000 emails</p>
+                            </div>
+                        </div>
+                    </motion.aside>
+                )}
+            </AnimatePresence>
+        </>
+    );
 }
-
-// <Image
-//     src={Logo}
-//     width={150}
-//     height={20}
-//     alt="Picture of the author"
-// />

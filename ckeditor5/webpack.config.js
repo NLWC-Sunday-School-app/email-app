@@ -58,7 +58,12 @@ module.exports = {
 	],
 
 	resolve: {
-		extensions: [ '.ts', '.js', '.json' ]
+		extensions: [ '.ts', '.js', '.json' ],
+		alias: {
+			// Prevent duplicate CKEditor packages
+			'@ckeditor/ckeditor5-core': path.resolve( __dirname, 'node_modules/@ckeditor/ckeditor5-core' ),
+			'@ckeditor/ckeditor5-utils': path.resolve( __dirname, 'node_modules/@ckeditor/ckeditor5-utils' )
+		}
 	},
 
 	module: {
@@ -67,7 +72,12 @@ module.exports = {
 			use: [ 'raw-loader' ]
 		}, {
 			test: /\.ts$/,
-			use: 'ts-loader'
+			use: {
+				loader: 'ts-loader',
+				options: {
+					transpileOnly: true
+				}
+			}
 		}, {
 			test: /\.css$/,
 			use: [ {

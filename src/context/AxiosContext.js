@@ -65,6 +65,7 @@ export const AxiosProvider = ({ children }) => {
 
     const requestErrorHandler = error => {
         setisLoading(false)
+
         // setshowLoaderID(false)
         // toast.show(error?.response?.data?.message ?? "Kindly login to continue", data);
         // return Promise.reject(error);
